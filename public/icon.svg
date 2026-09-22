@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF"/>
+      <stop offset="100%" stop-color="#5856D6"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
+  <!-- Card 1 -->
+  <rect x="76" y="146" width="160" height="220" rx="24" fill="#FFFFFF" opacity="0.95" filter="url(#shadow)"/>
+  <text x="156" y="270" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="72" font-weight="bold" fill="#007AFF" text-anchor="middle">En</text>
+  <!-- Card 2 -->
+  <rect x="276" y="146" width="160" height="220" rx="24" fill="#FFFFFF" opacity="0.95" filter="url(#shadow)"/>
+  <text x="356" y="275" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="78" font-weight="bold" fill="#34C759" text-anchor="middle">学</text>
+  <!-- Sparkle/Link icon -->
+  <circle cx="256" cy="256" r="28" fill="#FFD60A" filter="url(#shadow)"/>
+  <path d="M256 242 L259 253 L270 256 L259 259 L256 270 L253 259 L242 256 L253 253 Z" fill="#FFFFFF"/>
+</svg>
