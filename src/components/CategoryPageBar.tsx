@@ -30,7 +30,7 @@ export const CategoryPageBar: React.FC<CategoryPageBarProps> = ({
   const isCurrentPageDone = completedPages[currentPage];
 
   return (
-    <div className="shrink-0 px-3 py-1.5 bg-[#F2F2F7] border-b border-black/[0.06] flex items-center justify-between gap-1.5 select-none">
+    <div className="shrink-0 pl-3 pr-4 py-1.5 bg-[#F2F2F7] border-b border-black/[0.06] flex items-center justify-between gap-1 select-none">
       {/* Left: Compact Category Segmented Control */}
       <div className="flex p-0.5 bg-slate-200/80 rounded-xl text-xs font-semibold shrink-0">
         {CATEGORIES.map((cat) => {
@@ -41,7 +41,7 @@ export const CategoryPageBar: React.FC<CategoryPageBarProps> = ({
               key={cat.id}
               id={`cat-picker-${cat.id}`}
               onClick={() => onSelectCategory(cat.id)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all duration-150 cursor-pointer ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all duration-150 cursor-pointer ${
                 isSelected
                   ? 'bg-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900 font-medium'
@@ -69,32 +69,32 @@ export const CategoryPageBar: React.FC<CategoryPageBarProps> = ({
           id="btn-prev-page"
           onClick={() => hasPrev && onSelectPage(currentPage - 1)}
           disabled={!hasPrev}
-          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+          className={`w-6.5 h-6.5 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
             hasPrev
               ? 'bg-white text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95'
               : 'text-slate-300 opacity-40 cursor-not-allowed'
           }`}
           title="上一页"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-3.5 h-3.5" />
         </button>
 
         {/* Page Picker Trigger (Opens modal/dropdown) */}
         <button
           id="btn-open-page-picker"
           onClick={onOpenPagePicker}
-          className="flex items-center gap-1 px-2.5 py-1.5 bg-white text-slate-800 rounded-lg text-xs font-semibold shadow-2xs border border-black/[0.06] hover:bg-slate-50 active:scale-95 cursor-pointer transition-all"
+          className="flex items-center gap-1 px-2 py-1 bg-white text-slate-800 rounded-lg text-[11px] font-semibold shadow-2xs border border-black/[0.06] hover:bg-slate-50 active:scale-95 cursor-pointer transition-all"
           title="点击展开全部页面选择"
         >
           <span className="tabular-nums">
-            第 {currentPage}/{totalPages} 页
+            {currentPage}/{totalPages}页
           </span>
           {isCurrentPageDone && (
-            <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold">
-              <Check className="w-2.5 h-2.5 stroke-[3]" />
+            <span className="w-3 h-3 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[8px] font-bold">
+              <Check className="w-2 h-2 stroke-[3]" />
             </span>
           )}
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-0.5" />
+          <ChevronDown className="w-3 h-3 text-slate-400" />
         </button>
 
         {/* Next page arrow */}
@@ -102,14 +102,14 @@ export const CategoryPageBar: React.FC<CategoryPageBarProps> = ({
           id="btn-next-page"
           onClick={() => hasNext && onSelectPage(currentPage + 1)}
           disabled={!hasNext}
-          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+          className={`w-6.5 h-6.5 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
             hasNext
               ? 'bg-white text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95'
               : 'text-slate-300 opacity-40 cursor-not-allowed'
           }`}
           title="下一页"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

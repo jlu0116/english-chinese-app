@@ -499,7 +499,7 @@ export const PaiMatchGame: React.FC = () => {
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
       <div className="flex-1 px-3 sm:px-4 py-2 overflow-y-auto no-scrollbar">
         <div className="h-full flex flex-col justify-start">
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
             {/* LEFT COLUMN: 8 English Cards */}
             <div className="space-y-1.5 sm:space-y-2">
               {leftCards.map((card) => {
@@ -510,7 +510,7 @@ export const PaiMatchGame: React.FC = () => {
                     key={card.id}
                     id={`card-${card.id}`}
                     onClick={() => handleLeftClick(card)}
-                    className={`relative w-full h-[48px] sm:h-[52px] px-2.5 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
+                    className={`relative w-full h-[49px] sm:h-[53px] px-2.5 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
                       card.isMatched
                         ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
                         : card.isWrong
@@ -528,7 +528,7 @@ export const PaiMatchGame: React.FC = () => {
 
                       {/* English Word */}
                       <span
-                        className={`text-[12px] sm:text-[13px] font-semibold tracking-tight truncate leading-tight ${
+                        className={`text-[14px] sm:text-[15.5px] font-semibold tracking-tight truncate leading-tight ${
                           card.isMatched ? 'text-emerald-950' : 'text-slate-900'
                         }`}
                       >
@@ -561,7 +561,7 @@ export const PaiMatchGame: React.FC = () => {
                       }`}
                       title={card.isMatched ? '再次收听英文发音' : '收听发音'}
                     >
-                      <Volume2 className="w-3 h-3" />
+                      <Volume2 className="w-3.5 h-3.5" />
                     </span>
                   </button>
                 );
@@ -580,7 +580,7 @@ export const PaiMatchGame: React.FC = () => {
                     key={card.id}
                     id={`card-${card.id}`}
                     onClick={() => handleRightClick(card)}
-                    className={`relative w-full h-[48px] sm:h-[52px] px-3 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
+                    className={`relative w-full h-[49px] sm:h-[53px] px-2.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
                       isMatchedHighlight
                         ? 'bg-emerald-100 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/50 shadow-md scale-[1.03]'
                         : card.isMatched
@@ -605,7 +605,7 @@ export const PaiMatchGame: React.FC = () => {
 
                     {/* Centered Chinese text (never shifts when matched) */}
                     <div
-                      className={`text-[13.5px] sm:text-[14.5px] tracking-wide transition-colors ${
+                      className={`text-[15px] sm:text-[16.5px] tracking-wide transition-colors ${
                         isMatchedHighlight
                           ? 'text-emerald-950 font-bold'
                           : card.isMatched
