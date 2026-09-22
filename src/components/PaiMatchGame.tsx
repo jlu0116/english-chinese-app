@@ -506,9 +506,9 @@ export const PaiMatchGame: React.FC = () => {
           ></div>
         </div>
 
-        <div className="flex items-center justify-between text-xs">
+        <div className="relative flex items-center justify-between text-xs min-h-[22px]">
           {/* Streak indicator */}
-          <div className="flex items-center gap-1.5 font-semibold">
+          <div className="flex items-center gap-1.5 font-semibold shrink-0 z-10">
             {stats.streak >= 2 ? (
               <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 animate-bounce">
                 <Flame className="w-3.5 h-3.5 fill-orange-500" />
@@ -521,21 +521,23 @@ export const PaiMatchGame: React.FC = () => {
             )}
           </div>
 
+          {/* Centered Prompt Banner */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
+              <Pointer className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
+              <span>点击匹配中英文</span>
+            </div>
+          </div>
+
           {/* Bilingual Column Guideline */}
-          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-            <span className="text-slate-900 font-bold">
+          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 shrink-0 z-10">
+            <span className="text-slate-600 font-normal">
               左: 英文
             </span>
             <span className="text-slate-300">⇄</span>
-            <span className="text-slate-900 font-bold">右: 中文</span>
+            <span className="text-slate-600 font-normal">右: 中文</span>
           </div>
         </div>
-      </div>
-
-      {/* Hand Prompt Banner */}
-      <div className="shrink-0 px-4 py-1 flex items-center justify-center gap-1.5 text-[11px] text-slate-500 font-medium">
-        <Pointer className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
-        <span>点击匹配中英文</span>
       </div>
 
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
@@ -552,7 +554,7 @@ export const PaiMatchGame: React.FC = () => {
                     key={card.id}
                     id={`card-${card.id}`}
                     onClick={() => handleLeftClick(card)}
-                    className={`relative w-full h-[49px] sm:h-[53px] px-2.5 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
+                    className={`relative w-full h-[54px] sm:h-[58px] px-2.5 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
                       card.isMatched
                         ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
                         : card.isWrong
@@ -616,7 +618,7 @@ export const PaiMatchGame: React.FC = () => {
                     key={card.id}
                     id={`card-${card.id}`}
                     onClick={() => handleRightClick(card)}
-                    className={`relative w-full h-[49px] sm:h-[53px] px-2.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
+                    className={`relative w-full h-[54px] sm:h-[58px] px-2.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
                       isMatchedHighlight
                         ? 'bg-emerald-100 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/50 shadow-md scale-[1.03]'
                         : card.isMatched
