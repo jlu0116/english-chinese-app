@@ -1,0 +1,6 @@
+{
+  "name": "学英文",
+  "description": "An iOS-styled English vocabulary pair matching app designed for Chinese speakers learning essential English phrases across Airport and Grocery Store categories (80 words each).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
