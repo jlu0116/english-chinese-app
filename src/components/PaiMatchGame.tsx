@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { MatchCard, GameStats, VocabItem, CategoryId } from '../types.ts';
 import {
   getCategoryInfo,
@@ -34,6 +34,65 @@ import { PagePickerModal } from './PagePickerModal.tsx';
 import { CategoryPageBar } from './CategoryPageBar.tsx';
 
 const CARDS_PER_PAGE = 8;
+
+// Auto-scale English text to fit perfectly in one line without clipping
+const AutoFitEnglishText: React.FC<{
+  text: string;
+  isMatched: boolean;
+}> = ({ text, isMatched }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const parent = containerRef.current;
+    const textEl = textRef.current;
+    if (!parent || !textEl) return;
+
+    const computeScale = () => {
+      const parentWidth = parent.clientWidth;
+      const textWidth = textEl.scrollWidth;
+
+      if (textWidth > parentWidth && parentWidth > 0) {
+        const ratio = parentWidth / textWidth;
+        setScale(Math.max(0.55, ratio));
+      } else {
+        setScale(1);
+      }
+    };
+
+    computeScale();
+
+    const ro = new ResizeObserver(() => {
+      computeScale();
+    });
+    ro.observe(parent);
+
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 min-w-0 overflow-hidden flex items-center"
+    >
+      <span
+        ref={textRef}
+        style={{
+          transform: scale < 1 ? `scale(${scale})` : undefined,
+          transformOrigin: 'left center',
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+        }}
+        className={`text-[13.5px] sm:text-[14.5px] font-bold tracking-tight leading-tight transition-transform ${
+          isMatched ? 'text-emerald-950' : 'text-slate-900'
+        }`}
+      >
+        {text}
+      </span>
+    </div>
+  );
+};
 
 // Fisher-Yates shuffle that ensures at least partial derangement
 function shuffleCards(items: VocabItem[]): VocabItem[] {
@@ -520,20 +579,14 @@ export const PaiMatchGame: React.FC = () => {
                         : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:border-[#007AFF]/40 hover:bg-slate-50/60 cursor-pointer'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-1 overflow-hidden">
                       {/* Green outline checkmark when matched */}
                       {card.isMatched && (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 animate-scaleUp" />
                       )}
 
-                      {/* English Word */}
-                      <span
-                        className={`text-[14px] sm:text-[15.5px] font-semibold tracking-tight truncate leading-tight ${
-                          card.isMatched ? 'text-emerald-950' : 'text-slate-900'
-                        }`}
-                      >
-                        {card.text}
-                      </span>
+                      {/* Auto-scaling single line bold English word */}
+                      <AutoFitEnglishText text={card.text} isMatched={card.isMatched} />
                     </div>
 
                     {/* Pronounce Icon: active even when matched so user can replay anytime */}
@@ -603,14 +656,14 @@ export const PaiMatchGame: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Centered Chinese text (never shifts when matched) */}
+                    {/* Centered Chinese text (un-bolded, larger font size) */}
                     <div
-                      className={`text-[15px] sm:text-[16.5px] tracking-wide transition-colors ${
+                      className={`text-[17.5px] sm:text-[19px] font-normal tracking-wide transition-colors ${
                         isMatchedHighlight
-                          ? 'text-emerald-950 font-bold'
+                          ? 'text-emerald-950'
                           : card.isMatched
-                          ? 'text-emerald-800 font-normal'
-                          : 'text-slate-800 font-normal'
+                          ? 'text-emerald-800'
+                          : 'text-slate-800'
                       }`}
                     >
                       {card.text}
