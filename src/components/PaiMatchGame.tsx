@@ -543,6 +543,13 @@ export const PaiMatchGame: React.FC = () => {
                         speakEnglish(card.text, true);
                         if (card.isMatched) {
                           triggerMatchedHighlight(card.vocabId);
+                          return;
+                        }
+
+                        // If tapped before any card is selected, select this card and play select sound
+                        if (!selectedLeft && !selectedRight) {
+                          playSelectSound();
+                          setSelectedLeft(card);
                         }
                       }}
                       className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Wifi, BatteryMedium, Smartphone, Maximize2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Smartphone, Maximize2 } from 'lucide-react';
 
 interface IPhoneFrameProps {
   children: React.ReactNode;
@@ -8,19 +8,6 @@ interface IPhoneFrameProps {
 
 export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({ children }) => {
   const [useDeviceFrame, setUseDeviceFrame] = useState(true);
-  const [currentTime, setCurrentTime] = useState('09:41');
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const hours = now.getHours().toString().padStart(2, '0');
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      setCurrentTime(`${hours}:${minutes}`);
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-0 sm:p-4 md:p-6 transition-colors duration-300">
@@ -58,32 +45,9 @@ export const IPhoneFrame: React.FC<IPhoneFrameProps> = ({ children }) => {
             : 'max-w-2xl min-h-[92vh] rounded-2xl border border-slate-800 shadow-2xl relative flex flex-col overflow-hidden bg-[#F2F2F7]'
         }`}
       >
-        {/* iOS Status Bar */}
-        <div className="shrink-0 h-11 px-6 pt-2 pb-1 flex items-center justify-between text-slate-900 text-[13px] font-semibold select-none z-30 bg-[#F2F2F7]/90 backdrop-blur-md">
-          {/* Time */}
-          <div className="w-14 text-center tracking-tight">{currentTime}</div>
-
-          {/* Dynamic Island pill */}
-          <div className="w-24 h-5 bg-black rounded-full flex items-center justify-end px-2 gap-1.5 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[#007AFF] opacity-80"></span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          </div>
-
-          {/* Battery & Wifi */}
-          <div className="w-14 flex items-center justify-end gap-1.5 text-slate-800">
-            <Wifi className="w-3.5 h-3.5" />
-            <BatteryMedium className="w-4 h-4" />
-          </div>
-        </div>
-
         {/* Dynamic App Content */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
           {children}
-        </div>
-
-        {/* iOS Home Indicator Bar */}
-        <div className="shrink-0 h-6 flex items-center justify-center bg-[#F2F2F7] z-30 select-none">
-          <div className="w-32 h-1 bg-slate-400/60 rounded-full"></div>
         </div>
       </div>
     </div>
