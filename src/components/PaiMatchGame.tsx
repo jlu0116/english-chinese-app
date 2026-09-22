@@ -18,8 +18,6 @@ import {
 import {
   Volume2,
   VolumeX,
-  Mic,
-  MicOff,
   Flame,
   RotateCcw,
   BookOpen,
@@ -145,9 +143,8 @@ export const PaiMatchGame: React.FC = () => {
     };
   }, []);
 
-  // Sound & Speech settings
+  // Master Sound setting (controls all sound effects and voice over)
   const [soundOn, setSoundOn] = useState<boolean>(true);
-  const [speechOn, setSpeechOn] = useState<boolean>(true);
 
   // Modals
   const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
@@ -390,16 +387,11 @@ export const PaiMatchGame: React.FC = () => {
     }
   };
 
-  // Audio Controls
+  // Master Audio Control - mutes all sound effects and voice over
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
     setSoundEffectsEnabled(next);
-  };
-
-  const toggleSpeech = () => {
-    const next = !speechOn;
-    setSpeechOn(next);
     setSpeechEnabled(next);
   };
 
@@ -455,45 +447,36 @@ export const PaiMatchGame: React.FC = () => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button
             id="btn-toggle-sound"
             onClick={toggleSound}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              soundOn ? 'bg-slate-100 text-slate-700' : 'bg-rose-50 text-rose-500'
+            className={`w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-95 shadow-2xs cursor-pointer ${
+              soundOn
+                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                : 'bg-rose-50 text-rose-500 hover:bg-rose-100 ring-1 ring-rose-200'
             }`}
-            title={soundOn ? '音效已开启' : '音效已静音'}
+            title={soundOn ? '声音已开启（点击静音全部声音及朗读）' : '已静音（全部声音及朗读已静音，点击开启）'}
           >
-            {soundOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </button>
-
-          <button
-            id="btn-toggle-speech"
-            onClick={toggleSpeech}
-            className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-              speechOn ? 'bg-blue-50 text-[#007AFF]' : 'bg-slate-100 text-slate-400'
-            }`}
-            title={speechOn ? '英文朗读已开启' : '英文朗读已关闭'}
-          >
-            {speechOn ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+            {soundOn ? <Volume2 className="w-4.5 h-4.5" /> : <VolumeX className="w-4.5 h-4.5" />}
           </button>
 
           <button
             id="btn-open-handbook"
             onClick={() => setIsHandbookOpen(true)}
-            className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer ml-0.5"
+            className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 flex items-center justify-center transition-all duration-150 shadow-2xs cursor-pointer"
             title={`查看全部 ${currentCatInfo.totalWords} 词汇手册`}
           >
-            <BookOpen className="w-3.5 h-3.5" />
+            <BookOpen className="w-4.5 h-4.5" />
           </button>
 
           <button
             id="btn-restart-page"
             onClick={() => loadPage(currentPage, currentCategory)}
-            className="w-7 h-7 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer"
+            className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 flex items-center justify-center transition-all duration-150 shadow-2xs cursor-pointer"
             title="重新练习本页"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4.5 h-4.5" />
           </button>
         </div>
       </div>

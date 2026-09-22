@@ -18,6 +18,14 @@ function getAudioContext(): AudioContext | null {
 
 export function setSoundEffectsEnabled(enabled: boolean) {
   soundEnabled = enabled;
+  speechEnabled = enabled;
+  if (!enabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function isSoundEffectsEnabled(): boolean {
@@ -26,6 +34,13 @@ export function isSoundEffectsEnabled(): boolean {
 
 export function setSpeechEnabled(enabled: boolean) {
   speechEnabled = enabled;
+  if (!enabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function isSpeechEnabled(): boolean {
@@ -172,6 +187,7 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 }
 
 export function speakEnglish(text: string, force: boolean = false) {
+  if (!soundEnabled) return;
   if (!speechEnabled && !force) return;
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { VocabItem, CategoryId } from '../types.ts';
 import {
   CATEGORIES,
@@ -26,9 +26,22 @@ export const VocabHandbookModal: React.FC<VocabHandbookModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeZone, setActiveZone] = useState<string>('all');
 
-  React.useEffect(() => {
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startYRef = useRef<number>(0);
+  const isPointerDownRef = useRef<boolean>(false);
+  const activePointerIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
     setSelectedCatId(activeCategoryId);
   }, [activeCategoryId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setDragY(0);
+      setIsDragging(false);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -52,18 +65,94 @@ export const VocabHandbookModal: React.FC<VocabHandbookModalProps> = ({
     }
   };
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    isPointerDownRef.current = true;
+    activePointerIdRef.current = e.pointerId;
+    startYRef.current = e.clientY;
+    setIsDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPointerDownRef.current) return;
+    const delta = e.clientY - startYRef.current;
+    if (delta > 0) {
+      setDragY(delta);
+    } else {
+      setDragY(delta * 0.15);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isPointerDownRef.current) return;
+    isPointerDownRef.current = false;
+    setIsDragging(false);
+
+    try {
+      if (activePointerIdRef.current !== null) {
+        e.currentTarget.releasePointerCapture(activePointerIdRef.current);
+      }
+    } catch {
+      // ignore
+    }
+    activePointerIdRef.current = null;
+
+    if (dragY > 75) {
+      setDragY(window.innerHeight || 500);
+      setTimeout(() => {
+        setDragY(0);
+        onClose();
+      }, 180);
+    } else {
+      setDragY(0);
+    }
+  };
+
   return (
-    <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col justify-end animate-fadeIn">
+    <div
+      id="handbook-backdrop"
+      onClick={onClose}
+      style={{
+        backgroundColor: `rgba(0, 0, 0, ${Math.max(0.05, 0.4 * (1 - dragY / 300))})`,
+      }}
+      className="absolute inset-0 z-50 backdrop-blur-sm flex flex-col justify-end animate-fadeIn cursor-pointer"
+    >
       {/* iOS Modal Sheet */}
-      <div className="bg-[#F2F2F7] w-full max-h-[90%] rounded-t-[32px] flex flex-col shadow-2xl overflow-hidden border-t border-white/40 animate-slideUp">
-        {/* Grabber bar */}
-        <div className="pt-3 pb-1 flex justify-center">
-          <div className="w-10 h-1.5 bg-slate-300 rounded-full"></div>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          transform: dragY !== 0 ? `translateY(${dragY}px)` : undefined,
+          transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+        className={`bg-[#F2F2F7] w-full max-h-[90%] rounded-t-[32px] flex flex-col shadow-2xl overflow-hidden border-t border-white/40 cursor-default ${
+          !isDragging && dragY === 0 ? 'animate-slideUp' : ''
+        }`}
+      >
+        {/* Grabber bar - draggable slider */}
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className="pt-3 pb-2 flex justify-center cursor-grab active:cursor-grabbing touch-none select-none hover:bg-black/[0.02]"
+          title="按住往下拉可收起"
+        >
+          <div className="w-12 h-1.5 bg-slate-300 hover:bg-slate-400 active:bg-slate-500 rounded-full transition-colors"></div>
         </div>
 
-        {/* Header */}
-        <div className="px-5 py-3 flex items-center justify-between border-b border-black/[0.06] bg-white/70 backdrop-blur-md">
-          <div className="flex items-center gap-2">
+        {/* Header - also draggable to dismiss */}
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          className="px-5 py-3 flex items-center justify-between border-b border-black/[0.06] bg-white/70 backdrop-blur-md select-none cursor-grab active:cursor-grabbing touch-none"
+        >
+          <div className="flex items-center gap-2 pointer-events-none">
             <div className="w-8 h-8 rounded-xl bg-[#007AFF]/10 flex items-center justify-center text-[#007AFF]">
               <BookOpen className="w-4 h-4" />
             </div>
@@ -78,7 +167,11 @@ export const VocabHandbookModal: React.FC<VocabHandbookModalProps> = ({
           </div>
           <button
             id="btn-close-handbook"
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="w-8 h-8 rounded-full bg-slate-200/80 flex items-center justify-center text-slate-600 hover:bg-slate-300 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
