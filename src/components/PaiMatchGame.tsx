@@ -84,8 +84,8 @@ const AutoFitEnglishText: React.FC<{
           display: 'inline-block',
           whiteSpace: 'nowrap',
         }}
-        className={`text-[13.5px] sm:text-[14.5px] font-bold tracking-tight leading-tight transition-transform ${
-          isMatched ? 'text-emerald-950' : 'text-slate-900'
+        className={`text-[13.5px] sm:text-[14.5px] font-medium tracking-tight leading-tight transition-transform ${
+          isMatched ? 'text-emerald-950 font-semibold' : 'text-slate-900'
         }`}
       >
         {text}
