@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
-import { MatchCard, GameStats, VocabItem, CategoryId } from '../types.ts';
+import { MatchCard, GameStats, VocabItem, CategoryId, AppMode } from '../types.ts';
 import {
   getCategoryInfo,
   getCategoryPagesConfig,
@@ -25,6 +25,7 @@ import {
   Plane,
   ShoppingCart,
   Pointer,
+  Sparkles,
 } from 'lucide-react';
 import { VictoryModal } from './VictoryModal.tsx';
 import { VocabHandbookModal } from './VocabHandbookModal.tsx';
@@ -115,6 +116,7 @@ export const PaiMatchGame: React.FC = () => {
   >({
     airport: {},
     grocery: {},
+    custom: {},
   });
 
   // Active decks on current page (exactly 8 cards each)
@@ -122,6 +124,21 @@ export const PaiMatchGame: React.FC = () => {
   const [rightCards, setRightCards] = useState<MatchCard[]>([]);
   const [selectedLeft, setSelectedLeft] = useState<MatchCard | null>(null);
   const [selectedRight, setSelectedRight] = useState<MatchCard | null>(null);
+
+  // Active mode: default to 'study' mode instead of 'game' mode on launch
+  const [mode, setMode] = useState<AppMode>('study');
+  const [speakingCardId, setSpeakingCardId] = useState<string | null>(null);
+  const speakingTimerRef = React.useRef<number | null>(null);
+
+  const triggerSpeakingPulse = useCallback((cardId: string) => {
+    if (speakingTimerRef.current) {
+      window.clearTimeout(speakingTimerRef.current);
+    }
+    setSpeakingCardId(cardId);
+    speakingTimerRef.current = window.setTimeout(() => {
+      setSpeakingCardId(null);
+    }, 650);
+  }, []);
 
   // Temporary highlight for matching right card when replaying speaker audio
   const [highlightedMatchedVocabId, setHighlightedMatchedVocabId] = useState<string | null>(null);
@@ -140,6 +157,7 @@ export const PaiMatchGame: React.FC = () => {
   useEffect(() => {
     return () => {
       if (highlightTimerRef.current) window.clearTimeout(highlightTimerRef.current);
+      if (speakingTimerRef.current) window.clearTimeout(speakingTimerRef.current);
     };
   }, []);
 
@@ -179,55 +197,94 @@ export const PaiMatchGame: React.FC = () => {
   const hasNextPage = currentPage < totalPages;
 
   // Start or reset a page with exactly 8 cards and zero duplicates
-  const loadPage = useCallback((pageNumber: number, categoryId: CategoryId) => {
-    const pageItems = getCategoryPageItems(categoryId, pageNumber);
+  const loadPage = useCallback(
+    (pageNumber: number, categoryId: CategoryId, currentMode: AppMode = mode) => {
+      const pageItems = getCategoryPageItems(categoryId, pageNumber);
 
-    // Left Column: 8 English cards (shuffled to create fresh order)
-    const shuffledLeft = shuffleCards(pageItems);
-    const newLeft: MatchCard[] = shuffledLeft.map((item) => ({
-      id: `left-${item.id}`,
-      vocabId: item.id,
-      text: item.english,
-      type: 'english',
-      isMatched: false,
-      isWrong: false,
-      isSelected: false,
-    }));
+      if (currentMode === 'study') {
+        // Study mode: cards are all lined up in original sequence
+        const newLeft: MatchCard[] = pageItems.map((item) => ({
+          id: `left-${item.id}`,
+          vocabId: item.id,
+          text: item.english,
+          type: 'english',
+          isMatched: false,
+          isWrong: false,
+          isSelected: false,
+        }));
 
-    // Right Column: 8 Chinese cards (shuffled independently)
-    const shuffledRight = shuffleCards(pageItems);
-    const newRight: MatchCard[] = shuffledRight.map((item) => ({
-      id: `right-${item.id}`,
-      vocabId: item.id,
-      text: item.chinese,
-      type: 'chinese',
-      isMatched: false,
-      isWrong: false,
-      isSelected: false,
-    }));
+        const newRight: MatchCard[] = pageItems.map((item) => ({
+          id: `right-${item.id}`,
+          vocabId: item.id,
+          text: item.chinese,
+          type: 'chinese',
+          isMatched: false,
+          isWrong: false,
+          isSelected: false,
+        }));
 
-    setLeftCards(newLeft);
-    setRightCards(newRight);
-    setSelectedLeft(null);
-    setSelectedRight(null);
-    setIsVictoryOpen(false);
-    setIsGameActive(true);
+        setLeftCards(newLeft);
+        setRightCards(newRight);
+        setSelectedLeft(null);
+        setSelectedRight(null);
+        setIsVictoryOpen(false);
+        setIsGameActive(false);
+      } else {
+        // Game mode: cards are scrambled independently to play matching
+        const shuffledLeft = shuffleCards(pageItems);
+        const newLeft: MatchCard[] = shuffledLeft.map((item) => ({
+          id: `left-${item.id}`,
+          vocabId: item.id,
+          text: item.english,
+          type: 'english',
+          isMatched: false,
+          isWrong: false,
+          isSelected: false,
+        }));
 
-    setStats({
-      score: 0,
-      streak: 0,
-      maxStreak: 0,
-      correctPairs: 0,
-      totalAttempts: 0,
-      startTime: Date.now(),
-      elapsedSeconds: 0,
-    });
-  }, []);
+        const shuffledRight = shuffleCards(pageItems);
+        const newRight: MatchCard[] = shuffledRight.map((item) => ({
+          id: `right-${item.id}`,
+          vocabId: item.id,
+          text: item.chinese,
+          type: 'chinese',
+          isMatched: false,
+          isWrong: false,
+          isSelected: false,
+        }));
 
-  // When currentPage or currentCategory changes, reload cards
+        setLeftCards(newLeft);
+        setRightCards(newRight);
+        setSelectedLeft(null);
+        setSelectedRight(null);
+        setIsVictoryOpen(false);
+        setIsGameActive(true);
+      }
+
+      setStats({
+        score: 0,
+        streak: 0,
+        maxStreak: 0,
+        correctPairs: 0,
+        totalAttempts: 0,
+        startTime: Date.now(),
+        elapsedSeconds: 0,
+      });
+    },
+    [mode]
+  );
+
+  // When currentPage or currentCategory or mode changes, reload cards
   useEffect(() => {
-    loadPage(currentPage, currentCategory);
-  }, [currentPage, currentCategory, loadPage]);
+    loadPage(currentPage, currentCategory, mode);
+  }, [currentPage, currentCategory, mode, loadPage]);
+
+  // Switch mode
+  const handleToggleMode = (newMode: AppMode) => {
+    if (newMode === mode) return;
+    setMode(newMode);
+    loadPage(currentPage, currentCategory, newMode);
+  };
 
   // Switch category
   const handleSelectCategory = (catId: CategoryId) => {
@@ -281,8 +338,9 @@ export const PaiMatchGame: React.FC = () => {
         const streakBonus = Math.min(newStreak, 5) * 50;
         const newScore = prev.score + 100 + streakBonus;
 
-        // Check if all 8 cards on this page are matched!
-        if (newCorrect >= CARDS_PER_PAGE) {
+        // Check if all cards on this page are matched!
+        const totalCardsOnPage = leftCards.length;
+        if (newCorrect >= totalCardsOnPage && totalCardsOnPage > 0) {
           setIsGameActive(false);
           setCompletedPagesByCategory((old) => ({
             ...old,
@@ -346,6 +404,13 @@ export const PaiMatchGame: React.FC = () => {
 
   // Handle English Card Click (Left Column)
   const handleLeftClick = (card: MatchCard) => {
+    if (mode === 'study') {
+      // In study mode: merely make it speak the sound; will not light up blue and be selectable to match
+      speakEnglish(card.text, true);
+      triggerSpeakingPulse(card.id);
+      return;
+    }
+
     if (card.isMatched) return;
 
     // If already selected, deselect WITHOUT speech
@@ -369,6 +434,17 @@ export const PaiMatchGame: React.FC = () => {
 
   // Handle Chinese Card Click (Right Column)
   const handleRightClick = (card: MatchCard) => {
+    if (mode === 'study') {
+      // In study mode: cards cannot be selected to match; speaks the corresponding English audio
+      const pageItems = getCategoryPageItems(currentCategory, currentPage);
+      const item = pageItems.find((p) => p.id === card.vocabId);
+      if (item) {
+        speakEnglish(item.english, true);
+        triggerSpeakingPulse(`left-${card.vocabId}`);
+      }
+      return;
+    }
+
     if (card.isMatched) return;
 
     playSelectSound();
@@ -404,9 +480,10 @@ export const PaiMatchGame: React.FC = () => {
     }
   };
 
+  const totalCardsOnPage = leftCards.length || CARDS_PER_PAGE;
   const matchedCount = stats.correctPairs;
   const progressPercent = Math.min(
-    Math.round((matchedCount / CARDS_PER_PAGE) * 100),
+    Math.round((matchedCount / totalCardsOnPage) * 100),
     100
   );
 
@@ -414,36 +491,24 @@ export const PaiMatchGame: React.FC = () => {
     <div className="flex-1 flex flex-col h-full bg-[#F2F2F7] select-none overflow-hidden">
       {/* iOS App Navigation Bar */}
       <div className="shrink-0 px-4 py-2.5 bg-white/80 backdrop-blur-md border-b border-black/[0.06] flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-xs transition-colors"
+            className="w-8.5 h-8.5 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-xs transition-colors shrink-0"
             style={{
               backgroundColor: currentCatInfo.themeColor,
             }}
           >
             {currentCategory === 'airport' ? (
-              <Plane className="w-4 h-4" />
+              <Plane className="w-4.5 h-4.5" />
+            ) : currentCategory === 'grocery' ? (
+              <ShoppingCart className="w-4.5 h-4.5" />
             ) : (
-              <ShoppingCart className="w-4 h-4" />
+              <Sparkles className="w-4.5 h-4.5" />
             )}
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-base font-bold text-slate-900 leading-tight">学英文</h1>
-              <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: `${currentCatInfo.themeColor}18`,
-                  color: currentCatInfo.themeColor,
-                }}
-              >
-                {currentCatInfo.badgeZh}
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500">
-              第 {currentPage} 页 · {currentPageConfig.titleZh} ({matchedCount}/{CARDS_PER_PAGE})
-            </p>
-          </div>
+          <h1 className="text-xl sm:text-[22px] font-bold text-slate-900 tracking-tight leading-none">
+            学英文
+          </h1>
         </div>
 
         {/* Action Controls */}
@@ -472,9 +537,9 @@ export const PaiMatchGame: React.FC = () => {
 
           <button
             id="btn-restart-page"
-            onClick={() => loadPage(currentPage, currentCategory)}
+            onClick={() => loadPage(currentPage, currentCategory, mode)}
             className="w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 flex items-center justify-center transition-all duration-150 shadow-2xs cursor-pointer"
-            title="重新练习本页"
+            title={mode === 'study' ? '重置当前页词汇' : '重新练习本页'}
           >
             <RotateCcw className="w-4.5 h-4.5" />
           </button>
@@ -493,51 +558,81 @@ export const PaiMatchGame: React.FC = () => {
         onOpenPagePicker={() => setIsPagePickerOpen(true)}
       />
 
-      {/* Status Bar: Progress line & Streak Counter */}
-      <div className="shrink-0 px-4 py-1.5 bg-[#F2F2F7]">
-        {/* Progress Bar (0 to 8 cards) */}
-        <div className="w-full bg-slate-200/80 h-1.5 rounded-full overflow-hidden mb-1.5">
-          <div
-            className="h-full rounded-full transition-all duration-300"
-            style={{
-              width: `${progressPercent}%`,
-              backgroundColor: currentCatInfo.themeColor,
-            }}
-          ></div>
+      {/* Mode Toggle & Progress Bar / Guidance Row */}
+      <div className="shrink-0 px-3 sm:px-4 py-2 bg-[#F2F2F7] flex items-center gap-2.5 select-none min-h-[44px]">
+        {/* Left: Game vs Study Mode Toggle */}
+        <div className="flex p-0.5 bg-slate-200/80 rounded-xl text-xs font-semibold shrink-0">
+          <button
+            key="btn-mode-study"
+            id="btn-mode-study"
+            onClick={() => handleToggleMode('study')}
+            className={`flex items-center gap-1 px-2.5 h-7.5 sm:h-8 rounded-lg transition-all duration-150 cursor-pointer ${
+              mode === 'study'
+                ? 'bg-white text-blue-600 shadow-xs font-bold'
+                : 'text-slate-600 hover:text-slate-900 font-medium'
+            }`}
+            title="学习模式：卡片顺序对齐，点击英文卡片发音"
+          >
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-xs">学习</span>
+          </button>
+
+          <button
+            key="btn-mode-game"
+            id="btn-mode-game"
+            onClick={() => handleToggleMode('game')}
+            className={`flex items-center gap-1 px-2.5 h-7.5 sm:h-8 rounded-lg transition-all duration-150 cursor-pointer ${
+              mode === 'game'
+                ? 'bg-white text-indigo-600 shadow-xs font-bold'
+                : 'text-slate-600 hover:text-slate-900 font-medium'
+            }`}
+            title="游戏模式：卡片打乱乱序，点击中英文连线消除"
+          >
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-xs">游戏</span>
+          </button>
         </div>
 
-        <div className="relative flex items-center justify-between text-xs min-h-[22px]">
-          {/* Streak indicator */}
-          <div className="flex items-center gap-1.5 font-semibold shrink-0 z-10">
-            {stats.streak >= 2 ? (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 animate-bounce">
-                <Flame className="w-3.5 h-3.5 fill-orange-500" />
-                <span>连击 x{stats.streak}</span>
-              </div>
-            ) : (
-              <span className="text-slate-500 text-[11px] font-medium">
-                本页进度: <strong className="text-slate-800 font-bold">{matchedCount} / {CARDS_PER_PAGE} 组</strong>
-              </span>
-            )}
-          </div>
+        {/* Right of Toggle: Progress Bar + 0/8 or Streak in Game Mode; or Concise Text in Study Mode */}
+        {mode === 'game' ? (
+          <div className="flex-1 flex items-center gap-2 min-w-0">
+            {/* Left text before progress bar */}
+            <span className="text-xs font-semibold text-slate-500 tracking-tight shrink-0">
+              配對卡
+            </span>
 
-          {/* Centered Prompt Banner */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-              <Pointer className="w-3.5 h-3.5 text-blue-500 animate-pulse shrink-0" />
-              <span>点击匹配中英文</span>
+            {/* Progress track (not full length) */}
+            <div className="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${progressPercent}%`,
+                  backgroundColor: currentCatInfo.themeColor,
+                }}
+              />
+            </div>
+
+            {/* End of progress bar: 0/8, covered by streak badge when active */}
+            <div className="shrink-0 flex items-center justify-end min-w-[36px]">
+              {stats.streak >= 2 ? (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold text-xs animate-bounce shadow-2xs">
+                  <Flame className="w-3.5 h-3.5 fill-orange-500 shrink-0" />
+                  <span className="tabular-nums">x{stats.streak}</span>
+                </div>
+              ) : (
+                <span className="text-xs font-semibold text-slate-500 tabular-nums">
+                  {matchedCount}/{totalCardsOnPage}
+                </span>
+              )}
             </div>
           </div>
-
-          {/* Bilingual Column Guideline */}
-          <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1 shrink-0 z-10">
-            <span className="text-slate-600 font-normal">
-              左: 英文
+        ) : (
+          <div className="flex-1 flex items-center justify-center px-1 min-w-0">
+            <span className="text-[11.5px] sm:text-xs text-slate-500 font-medium text-center truncate">
+              当前为学习模式 · 切换至游戏开始配对
             </span>
-            <span className="text-slate-300">⇄</span>
-            <span className="text-slate-600 font-normal">右: 中文</span>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
@@ -548,6 +643,7 @@ export const PaiMatchGame: React.FC = () => {
             <div className="space-y-1.5 sm:space-y-2">
               {leftCards.map((card) => {
                 const isSelected = selectedLeft?.id === card.id;
+                const isSpeaking = speakingCardId === card.id;
 
                 return (
                   <button
@@ -555,7 +651,11 @@ export const PaiMatchGame: React.FC = () => {
                     id={`card-${card.id}`}
                     onClick={() => handleLeftClick(card)}
                     className={`relative w-full h-[54px] sm:h-[58px] px-2.5 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
-                      card.isMatched
+                      mode === 'study'
+                        ? isSpeaking
+                          ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
+                          : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:bg-slate-50/80 hover:border-slate-300 active:bg-slate-100 cursor-pointer'
+                        : card.isMatched
                         ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
                         : card.isWrong
                         ? 'bg-rose-50 border-rose-400 text-rose-700 animate-shake shadow-xs cursor-pointer'
@@ -565,20 +665,24 @@ export const PaiMatchGame: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-1 overflow-hidden">
-                      {/* Green outline checkmark when matched */}
-                      {card.isMatched && (
+                      {/* Green outline checkmark when matched (game mode only) */}
+                      {mode === 'game' && card.isMatched && (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 animate-scaleUp" />
                       )}
 
                       {/* Auto-scaling single line bold English word */}
-                      <AutoFitEnglishText text={card.text} isMatched={card.isMatched} />
+                      <AutoFitEnglishText text={card.text} isMatched={mode === 'game' && card.isMatched} />
                     </div>
 
-                    {/* Pronounce Icon: active even when matched so user can replay anytime */}
+                    {/* Pronounce Icon */}
                     <span
                       onClick={(e) => {
                         e.stopPropagation();
                         speakEnglish(card.text, true);
+                        if (mode === 'study') {
+                          triggerSpeakingPulse(card.id);
+                          return;
+                        }
                         if (card.isMatched) {
                           triggerMatchedHighlight(card.vocabId);
                           return;
@@ -591,13 +695,17 @@ export const PaiMatchGame: React.FC = () => {
                         }
                       }}
                       className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                        card.isMatched
+                        mode === 'study'
+                          ? isSpeaking
+                            ? 'bg-slate-200 text-slate-800 scale-110 shadow-xs'
+                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95'
+                          : card.isMatched
                           ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 hover:text-emerald-900 active:scale-90 shadow-2xs'
                           : isSelected
                           ? 'bg-blue-100 text-[#007AFF]'
                           : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
                       }`}
-                      title={card.isMatched ? '再次收听英文发音' : '收听发音'}
+                      title={mode === 'study' ? '朗读发音' : card.isMatched ? '再次收听英文发音' : '收听发音'}
                     >
                       <Volume2 className="w-3.5 h-3.5" />
                     </span>
@@ -612,6 +720,7 @@ export const PaiMatchGame: React.FC = () => {
                 const isSelected = selectedRight?.id === card.id;
                 const isMatchedHighlight =
                   card.isMatched && highlightedMatchedVocabId === card.vocabId;
+                const isSpeakingPair = speakingCardId === `left-${card.vocabId}`;
 
                 return (
                   <button
@@ -619,7 +728,11 @@ export const PaiMatchGame: React.FC = () => {
                     id={`card-${card.id}`}
                     onClick={() => handleRightClick(card)}
                     className={`relative w-full h-[54px] sm:h-[58px] px-2.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
-                      isMatchedHighlight
+                      mode === 'study'
+                        ? isSpeakingPair
+                          ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
+                          : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:bg-slate-50/80 hover:border-slate-300 active:bg-slate-100 cursor-pointer'
+                        : isMatchedHighlight
                         ? 'bg-emerald-100 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/50 shadow-md scale-[1.03]'
                         : card.isMatched
                         ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
@@ -631,7 +744,7 @@ export const PaiMatchGame: React.FC = () => {
                     }`}
                   >
                     {/* Absolute left-justified checkmark so centered text never shifts */}
-                    {card.isMatched && (
+                    {mode === 'game' && card.isMatched && (
                       <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none animate-scaleUp">
                         <CheckCircle2
                           className={`w-4 h-4 shrink-0 transition-transform ${
@@ -644,7 +757,11 @@ export const PaiMatchGame: React.FC = () => {
                     {/* Centered Chinese text (un-bolded, larger font size) */}
                     <div
                       className={`text-[17.5px] sm:text-[19px] font-normal tracking-wide transition-colors ${
-                        isMatchedHighlight
+                        mode === 'study'
+                          ? isSpeakingPair
+                            ? 'text-slate-900 font-medium'
+                            : 'text-slate-800'
+                          : isMatchedHighlight
                           ? 'text-emerald-950'
                           : card.isMatched
                           ? 'text-emerald-800'
@@ -690,7 +807,7 @@ export const PaiMatchGame: React.FC = () => {
         pageTitle={currentPageConfig.titleZh}
         totalWords={currentCatInfo.totalWords}
         hasNextPage={hasNextPage}
-        onRestart={() => loadPage(currentPage, currentCategory)}
+        onRestart={() => loadPage(currentPage, currentCategory, mode)}
         onNextPage={handleNextPage}
         onOpenHandbook={() => {
           setIsVictoryOpen(false);

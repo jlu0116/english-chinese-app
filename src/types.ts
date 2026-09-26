@@ -1,5 +1,6 @@
-export type CategoryId = 'airport' | 'grocery';
+export type CategoryId = 'airport' | 'grocery' | 'custom';
 export type AirportZone = 'all' | 'checkin' | 'security' | 'inflight' | 'transit';
+export type AppMode = 'study' | 'game';
 
 export interface CategoryInfo {
   id: CategoryId;

@@ -7,7 +7,7 @@ import {
   getCategoryZoneConfig,
 } from '../data/categories.ts';
 import { speakEnglish } from '../utils/audio.ts';
-import { X, Volume2, Search, BookOpen, Plane, ShoppingCart } from 'lucide-react';
+import { X, Volume2, Search, BookOpen, Plane, ShoppingCart, Sparkles } from 'lucide-react';
 
 interface VocabHandbookModalProps {
   isOpen: boolean;
@@ -180,23 +180,25 @@ export const VocabHandbookModal: React.FC<VocabHandbookModalProps> = ({
 
         {/* Category Switcher in Handbook */}
         <div className="px-4 pt-3 pb-2 bg-white/50 border-b border-black/[0.04]">
-          <div className="grid grid-cols-2 p-1 bg-slate-200/80 rounded-2xl gap-1 text-xs">
+          <div className="grid grid-cols-3 p-1 bg-slate-200/80 rounded-2xl gap-1 text-xs">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleSwitchCat(cat.id)}
-                className={`py-1.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-semibold transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-xl flex items-center justify-center gap-1 font-semibold transition-all cursor-pointer ${
                   selectedCatId === cat.id
                     ? 'bg-white text-slate-900 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {cat.id === 'airport' ? (
-                  <Plane className="w-3.5 h-3.5 text-[#007AFF]" />
+                  <Plane className="w-3.5 h-3.5 text-[#007AFF] shrink-0" />
+                ) : cat.id === 'grocery' ? (
+                  <ShoppingCart className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 ) : (
-                  <ShoppingCart className="w-3.5 h-3.5 text-emerald-600" />
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                 )}
-                <span>
+                <span className="truncate">
                   {cat.nameZh} ({cat.totalWords}词)
                 </span>
               </button>
