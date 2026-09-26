@@ -14,11 +14,11 @@ import {
   getGroceryPageVocab,
 } from './groceryVocab.ts';
 import {
-  CUSTOM_VOCABULARY,
-  CUSTOM_PAGES_CONFIG,
   CUSTOM_ZONE_CONFIG,
-  CUSTOM_TOTAL_PAGES,
   getCustomPageVocab,
+  getCustomVocabList,
+  getCustomPagesConfig,
+  getCustomTotalPages,
 } from './customVocab.ts';
 
 export const CATEGORIES: CategoryInfo[] = [
@@ -46,27 +46,46 @@ export const CATEGORIES: CategoryInfo[] = [
     nameEn: 'Custom',
     badgeZh: '专属词汇',
     totalWords: 4,
-    totalPages: CUSTOM_TOTAL_PAGES,
+    totalPages: 1,
     themeColor: '#AF52DE',
   },
 ];
 
 export function getCategoryInfo(categoryId: CategoryId): CategoryInfo {
-  return CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[0];
+  const base = CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[0];
+  if (categoryId === 'custom') {
+    const customList = getCustomVocabList();
+    return {
+      ...base,
+      totalWords: customList.length,
+      totalPages: getCustomTotalPages(customList),
+    };
+  }
+  return base;
 }
 
 export function getCategoryVocab(categoryId: CategoryId): VocabItem[] {
-  if (categoryId === 'custom') return CUSTOM_VOCABULARY;
+  if (categoryId === 'custom') return getCustomVocabList();
   return categoryId === 'grocery' ? GROCERY_VOCABULARY : AIRPORT_VOCABULARY;
 }
 
 export function getCategoryPagesConfig(categoryId: CategoryId): PageConfig[] {
-  if (categoryId === 'custom') return CUSTOM_PAGES_CONFIG;
+  if (categoryId === 'custom') return getCustomPagesConfig(getCustomVocabList());
   return categoryId === 'grocery' ? GROCERY_PAGES_CONFIG : AIRPORT_PAGES_CONFIG;
 }
 
 export function getCategoryZoneConfig(categoryId: CategoryId): Record<string, ZoneConfigItem> {
-  if (categoryId === 'custom') return CUSTOM_ZONE_CONFIG;
+  if (categoryId === 'custom') {
+    const customList = getCustomVocabList();
+    return {
+      custom: {
+        nameZh: '自定义',
+        nameEn: 'Custom',
+        count: customList.length,
+        color: '#AF52DE',
+      },
+    };
+  }
   return categoryId === 'grocery' ? GROCERY_ZONE_CONFIG : AIRPORT_ZONE_CONFIG;
 }
 
@@ -76,3 +95,4 @@ export function getCategoryPageItems(categoryId: CategoryId, pageNumber: number)
     ? getGroceryPageVocab(pageNumber)
     : getAirportPageVocab(pageNumber);
 }
+

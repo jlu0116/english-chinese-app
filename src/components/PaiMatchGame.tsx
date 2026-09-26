@@ -26,11 +26,22 @@ import {
   ShoppingCart,
   Pointer,
   Sparkles,
+  Plus,
+  Trash2,
+  Check,
 } from 'lucide-react';
 import { VictoryModal } from './VictoryModal.tsx';
 import { VocabHandbookModal } from './VocabHandbookModal.tsx';
 import { PagePickerModal } from './PagePickerModal.tsx';
 import { CategoryPageBar } from './CategoryPageBar.tsx';
+import { AddCustomEnglishSheet } from './AddCustomEnglishSheet.tsx';
+import {
+  getCustomVocabList,
+  addCustomVocabItem,
+  removeCustomVocabItem,
+  getCustomPagesConfig,
+  getCustomPageItems,
+} from '../utils/customVocabStorage.ts';
 
 const CARDS_PER_PAGE = 8;
 
@@ -39,6 +50,65 @@ const AutoFitEnglishText: React.FC<{
   text: string;
   isMatched: boolean;
 }> = ({ text, isMatched }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const parent = containerRef.current;
+    const textEl = textRef.current;
+    if (!parent || !textEl) return;
+
+    const computeScale = () => {
+      const parentWidth = parent.clientWidth;
+      const textWidth = textEl.scrollWidth;
+
+      if (textWidth > parentWidth && parentWidth > 0) {
+        const ratio = parentWidth / textWidth;
+        setScale(Math.max(0.5, ratio));
+      } else {
+        setScale(1);
+      }
+    };
+
+    computeScale();
+
+    const ro = new ResizeObserver(() => {
+      computeScale();
+    });
+    ro.observe(parent);
+
+    return () => ro.disconnect();
+  }, [text, isMatched]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 min-w-0 overflow-hidden flex items-center"
+    >
+      <span
+        ref={textRef}
+        style={{
+          transform: scale < 1 ? `scale(${scale})` : undefined,
+          transformOrigin: 'left center',
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+        }}
+        className={`text-[16px] sm:text-[17.5px] font-normal tracking-tight leading-tight transition-transform ${
+          isMatched ? 'text-emerald-950 font-medium' : 'text-slate-800'
+        }`}
+      >
+        {text}
+      </span>
+    </div>
+  );
+};
+
+// Component for Chinese card text that automatically scales down if too large for one line
+const AutoFitChineseText: React.FC<{
+  text: string;
+  className?: string;
+}> = ({ text, className = '' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const [scale, setScale] = useState(1);
@@ -73,19 +143,17 @@ const AutoFitEnglishText: React.FC<{
   return (
     <div
       ref={containerRef}
-      className="flex-1 min-w-0 overflow-hidden flex items-center"
+      className="w-full max-w-full overflow-hidden flex items-center justify-center px-1"
     >
       <span
         ref={textRef}
         style={{
           transform: scale < 1 ? `scale(${scale})` : undefined,
-          transformOrigin: 'left center',
+          transformOrigin: 'center center',
           display: 'inline-block',
           whiteSpace: 'nowrap',
         }}
-        className={`text-[13.5px] sm:text-[14.5px] font-medium tracking-tight leading-tight transition-transform ${
-          isMatched ? 'text-emerald-950 font-semibold' : 'text-slate-900'
-        }`}
+        className={className}
       >
         {text}
       </span>
@@ -164,10 +232,15 @@ export const PaiMatchGame: React.FC = () => {
   // Master Sound setting (controls all sound effects and voice over)
   const [soundOn, setSoundOn] = useState<boolean>(true);
 
-  // Modals
+  // Modals & Sheets
   const [isHandbookOpen, setIsHandbookOpen] = useState<boolean>(false);
   const [isVictoryOpen, setIsVictoryOpen] = useState<boolean>(false);
   const [isPagePickerOpen, setIsPagePickerOpen] = useState<boolean>(false);
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState<boolean>(false);
+  const [isDeleteMode, setIsDeleteMode] = useState<boolean>(false);
+
+  // Custom vocabulary state to trigger reactive updates
+  const [customVocabList, setCustomVocabList] = useState<VocabItem[]>(getCustomVocabList);
 
   // Stats for current round/page
   const [stats, setStats] = useState<GameStats>({
@@ -183,8 +256,24 @@ export const PaiMatchGame: React.FC = () => {
   const [isGameActive, setIsGameActive] = useState<boolean>(true);
 
   // Current Category info and pages configuration
-  const currentCatInfo = useMemo(() => getCategoryInfo(currentCategory), [currentCategory]);
-  const pagesConfig = useMemo(() => getCategoryPagesConfig(currentCategory), [currentCategory]);
+  const currentCatInfo = useMemo(() => {
+    const base = getCategoryInfo(currentCategory);
+    if (currentCategory === 'custom') {
+      return {
+        ...base,
+        totalWords: customVocabList.length,
+        totalPages: Math.max(1, Math.ceil(customVocabList.length / 8)),
+      };
+    }
+    return base;
+  }, [currentCategory, customVocabList]);
+
+  const pagesConfig = useMemo(() => {
+    if (currentCategory === 'custom') {
+      return getCustomPagesConfig(customVocabList);
+    }
+    return getCategoryPagesConfig(currentCategory);
+  }, [currentCategory, customVocabList]);
 
   const currentPageConfig = useMemo(() => {
     return (
@@ -196,10 +285,13 @@ export const PaiMatchGame: React.FC = () => {
   const totalPages = pagesConfig.length;
   const hasNextPage = currentPage < totalPages;
 
-  // Start or reset a page with exactly 8 cards and zero duplicates
+  // Start or reset a page with cards and zero duplicates
   const loadPage = useCallback(
     (pageNumber: number, categoryId: CategoryId, currentMode: AppMode = mode) => {
-      const pageItems = getCategoryPageItems(categoryId, pageNumber);
+      const pageItems =
+        categoryId === 'custom'
+          ? getCustomPageItems(getCustomVocabList(), pageNumber)
+          : getCategoryPageItems(categoryId, pageNumber);
 
       if (currentMode === 'study') {
         // Study mode: cards are all lined up in original sequence
@@ -274,10 +366,30 @@ export const PaiMatchGame: React.FC = () => {
     [mode]
   );
 
-  // When currentPage or currentCategory or mode changes, reload cards
+  // When currentPage, currentCategory, mode, or customVocabList changes, reload cards
   useEffect(() => {
     loadPage(currentPage, currentCategory, mode);
-  }, [currentPage, currentCategory, mode, loadPage]);
+  }, [currentPage, currentCategory, mode, customVocabList, loadPage]);
+
+  // Handler for adding custom english word
+  const handleAddCustomEnglish = (english: string, chinese: string) => {
+    const { updatedList, newPage } = addCustomVocabItem(english, chinese);
+    setCustomVocabList(updatedList);
+    // If the card pushes beyond 8 on the current page, new page is created and navigated to
+    setCurrentPage(newPage);
+  };
+
+  // Handler for removing custom word
+  const handleRemoveCustomCard = (cardId: string) => {
+    const { updatedList, newTotalPages } = removeCustomVocabItem(cardId);
+    setCustomVocabList(updatedList);
+    if (updatedList.length === 0) {
+      setIsDeleteMode(false);
+    }
+    if (currentPage > newTotalPages) {
+      setCurrentPage(newTotalPages);
+    }
+  };
 
   // Switch mode
   const handleToggleMode = (newMode: AppMode) => {
@@ -289,6 +401,7 @@ export const PaiMatchGame: React.FC = () => {
   // Switch category
   const handleSelectCategory = (catId: CategoryId) => {
     if (catId === currentCategory) return;
+    setIsDeleteMode(false);
     setCurrentCategory(catId);
     setCurrentPage(1);
   };
@@ -404,6 +517,11 @@ export const PaiMatchGame: React.FC = () => {
 
   // Handle English Card Click (Left Column)
   const handleLeftClick = (card: MatchCard) => {
+    if (currentCategory === 'custom' && isDeleteMode) {
+      handleRemoveCustomCard(card.vocabId);
+      return;
+    }
+
     if (mode === 'study') {
       // In study mode: merely make it speak the sound; will not light up blue and be selectable to match
       speakEnglish(card.text, true);
@@ -434,9 +552,17 @@ export const PaiMatchGame: React.FC = () => {
 
   // Handle Chinese Card Click (Right Column)
   const handleRightClick = (card: MatchCard) => {
+    if (currentCategory === 'custom' && isDeleteMode) {
+      handleRemoveCustomCard(card.vocabId);
+      return;
+    }
+
     if (mode === 'study') {
       // In study mode: cards cannot be selected to match; speaks the corresponding English audio
-      const pageItems = getCategoryPageItems(currentCategory, currentPage);
+      const pageItems =
+        currentCategory === 'custom'
+          ? getCustomPageItems(getCustomVocabList(), currentPage)
+          : getCategoryPageItems(currentCategory, currentPage);
       const item = pageItems.find((p) => p.id === card.vocabId);
       if (item) {
         speakEnglish(item.english, true);
@@ -559,50 +685,50 @@ export const PaiMatchGame: React.FC = () => {
       />
 
       {/* Mode Toggle & Progress Bar / Guidance Row */}
-      <div className="shrink-0 px-3 sm:px-4 py-2 bg-[#F2F2F7] flex items-center gap-2.5 select-none min-h-[44px]">
+      <div className="shrink-0 px-3.5 sm:px-4 py-2.5 bg-[#F2F2F7] flex items-center gap-3 select-none min-h-[48px]">
         {/* Left: Game vs Study Mode Toggle */}
-        <div className="flex p-0.5 bg-slate-200/80 rounded-xl text-xs font-semibold shrink-0">
+        <div className="flex p-0.5 bg-slate-200/80 rounded-xl text-sm font-medium shrink-0">
           <button
             key="btn-mode-study"
             id="btn-mode-study"
             onClick={() => handleToggleMode('study')}
-            className={`flex items-center gap-1 px-2.5 h-7.5 sm:h-8 rounded-lg transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 h-8.5 sm:h-9 rounded-lg transition-all duration-150 cursor-pointer ${
               mode === 'study'
-                ? 'bg-white text-blue-600 shadow-xs font-bold'
-                : 'text-slate-600 hover:text-slate-900 font-medium'
+                ? 'bg-white text-blue-600 shadow-xs font-medium'
+                : 'text-slate-600 hover:text-slate-900 font-normal'
             }`}
             title="学习模式：卡片顺序对齐，点击英文卡片发音"
           >
-            <BookOpen className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-xs">学习</span>
+            <BookOpen className="w-4 h-4 shrink-0" />
+            <span className="text-sm font-medium">学习</span>
           </button>
 
           <button
             key="btn-mode-game"
             id="btn-mode-game"
             onClick={() => handleToggleMode('game')}
-            className={`flex items-center gap-1 px-2.5 h-7.5 sm:h-8 rounded-lg transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 h-8.5 sm:h-9 rounded-lg transition-all duration-150 cursor-pointer ${
               mode === 'game'
-                ? 'bg-white text-indigo-600 shadow-xs font-bold'
-                : 'text-slate-600 hover:text-slate-900 font-medium'
+                ? 'bg-white text-indigo-600 shadow-xs font-medium'
+                : 'text-slate-600 hover:text-slate-900 font-normal'
             }`}
             title="游戏模式：卡片打乱乱序，点击中英文连线消除"
           >
-            <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span className="text-xs">游戏</span>
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span className="text-sm font-medium">游戏</span>
           </button>
         </div>
 
         {/* Right of Toggle: Progress Bar + 0/8 or Streak in Game Mode; or Concise Text in Study Mode */}
         {mode === 'game' ? (
-          <div className="flex-1 flex items-center gap-2 min-w-0">
+          <div className="flex-1 flex items-center gap-2.5 min-w-0">
             {/* Left text before progress bar */}
-            <span className="text-xs font-semibold text-slate-500 tracking-tight shrink-0">
+            <span className="text-sm font-medium text-slate-600 tracking-tight shrink-0">
               配對卡
             </span>
 
             {/* Progress track (not full length) */}
-            <div className="flex-1 bg-slate-200/80 h-2 rounded-full overflow-hidden">
+            <div className="flex-1 bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-300"
                 style={{
@@ -613,14 +739,14 @@ export const PaiMatchGame: React.FC = () => {
             </div>
 
             {/* End of progress bar: 0/8, covered by streak badge when active */}
-            <div className="shrink-0 flex items-center justify-end min-w-[36px]">
+            <div className="shrink-0 flex items-center justify-end min-w-[42px]">
               {stats.streak >= 2 ? (
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold text-xs animate-bounce shadow-2xs">
-                  <Flame className="w-3.5 h-3.5 fill-orange-500 shrink-0" />
+                <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-600 font-semibold text-sm animate-bounce shadow-2xs">
+                  <Flame className="w-4 h-4 fill-orange-500 shrink-0" />
                   <span className="tabular-nums">x{stats.streak}</span>
                 </div>
               ) : (
-                <span className="text-xs font-semibold text-slate-500 tabular-nums">
+                <span className="text-sm font-medium text-slate-600 tabular-nums">
                   {matchedCount}/{totalCardsOnPage}
                 </span>
               )}
@@ -628,19 +754,19 @@ export const PaiMatchGame: React.FC = () => {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center px-1 min-w-0">
-            <span className="text-[11.5px] sm:text-xs text-slate-500 font-medium text-center truncate">
-              当前为学习模式 · 切换至游戏开始配对
+            <span className="text-sm text-slate-600 font-normal text-center truncate">
+              切换至游戏开始配对
             </span>
           </div>
         )}
       </div>
 
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
-      <div className="flex-1 px-3 sm:px-4 py-2 overflow-y-auto no-scrollbar">
+      <div className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar">
         <div className="h-full flex flex-col justify-start">
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-2 gap-1 sm:gap-1.5">
             {/* LEFT COLUMN: 8 English Cards */}
-            <div className="space-y-1.5 sm:space-y-2">
+            <div className="space-y-1 sm:space-y-1.5">
               {leftCards.map((card) => {
                 const isSelected = selectedLeft?.id === card.id;
                 const isSpeaking = speakingCardId === card.id;
@@ -650,7 +776,7 @@ export const PaiMatchGame: React.FC = () => {
                     key={card.id}
                     id={`card-${card.id}`}
                     onClick={() => handleLeftClick(card)}
-                    className={`relative w-full h-[54px] sm:h-[58px] px-2.5 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
+                    className={`relative w-full h-[54px] sm:h-[58px] px-2 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
                       mode === 'study'
                         ? isSpeaking
                           ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
@@ -664,58 +790,73 @@ export const PaiMatchGame: React.FC = () => {
                         : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:border-[#007AFF]/40 hover:bg-slate-50/60 cursor-pointer'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-1 overflow-hidden">
+                    <div className="flex items-center gap-1 flex-1 min-w-0 pr-0.5 overflow-hidden">
                       {/* Green outline checkmark when matched (game mode only) */}
                       {mode === 'game' && card.isMatched && (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 animate-scaleUp" />
                       )}
 
-                      {/* Auto-scaling single line bold English word */}
+                      {/* Auto-scaling single line English word with increased font size */}
                       <AutoFitEnglishText text={card.text} isMatched={mode === 'game' && card.isMatched} />
                     </div>
 
-                    {/* Pronounce Icon */}
-                    <span
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        speakEnglish(card.text, true);
-                        if (mode === 'study') {
-                          triggerSpeakingPulse(card.id);
-                          return;
-                        }
-                        if (card.isMatched) {
-                          triggerMatchedHighlight(card.vocabId);
-                          return;
-                        }
+                    {/* Pronounce Icon OR Trash Can Icon when in Remove Mode */}
+                    {currentCategory === 'custom' && isDeleteMode ? (
+                      <button
+                        type="button"
+                        id={`btn-trash-left-${card.vocabId}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCustomCard(card.vocabId);
+                        }}
+                        className="shrink-0 w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs ml-1 z-10"
+                        title="点击删除此自定义卡片"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                      </button>
+                    ) : (
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakEnglish(card.text, true);
+                          if (mode === 'study') {
+                            triggerSpeakingPulse(card.id);
+                            return;
+                          }
+                          if (card.isMatched) {
+                            triggerMatchedHighlight(card.vocabId);
+                            return;
+                          }
 
-                        // If tapped before any card is selected, select this card and play select sound
-                        if (!selectedLeft && !selectedRight) {
-                          playSelectSound();
-                          setSelectedLeft(card);
-                        }
-                      }}
-                      className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                        mode === 'study'
-                          ? isSpeaking
-                            ? 'bg-slate-200 text-slate-800 scale-110 shadow-xs'
-                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95'
-                          : card.isMatched
-                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 hover:text-emerald-900 active:scale-90 shadow-2xs'
-                          : isSelected
-                          ? 'bg-blue-100 text-[#007AFF]'
-                          : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-                      }`}
-                      title={mode === 'study' ? '朗读发音' : card.isMatched ? '再次收听英文发音' : '收听发音'}
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                    </span>
+                          // If tapped before any card is selected, select this card and play select sound
+                          if (!selectedLeft && !selectedRight) {
+                            playSelectSound();
+                            setSelectedLeft(card);
+                          }
+                        }}
+                        className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                          mode === 'study'
+                            ? isSpeaking
+                              ? 'bg-slate-200 text-slate-800 scale-110 shadow-xs'
+                              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95'
+                            : card.isMatched
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 hover:text-emerald-900 active:scale-90 shadow-2xs'
+                            : isSelected
+                            ? 'bg-blue-100 text-[#007AFF]'
+                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                        }`}
+                        title={mode === 'study' ? '朗读发音' : card.isMatched ? '再次收听英文发音' : '收听发音'}
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
 
-            {/* RIGHT COLUMN: 8 Chinese Cards (Centered, no pinyin) */}
-            <div className="space-y-1.5 sm:space-y-2">
+            {/* RIGHT COLUMN: 8 Chinese Cards (Centered, auto-fit to single line) */}
+            <div className="space-y-1 sm:space-y-1.5">
               {rightCards.map((card) => {
                 const isSelected = selectedRight?.id === card.id;
                 const isMatchedHighlight =
@@ -727,7 +868,7 @@ export const PaiMatchGame: React.FC = () => {
                     key={card.id}
                     id={`card-${card.id}`}
                     onClick={() => handleRightClick(card)}
-                    className={`relative w-full h-[54px] sm:h-[58px] px-2.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
+                    className={`relative w-full h-[54px] sm:h-[58px] px-1.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
                       mode === 'study'
                         ? isSpeakingPair
                           ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
@@ -754,29 +895,97 @@ export const PaiMatchGame: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Centered Chinese text (un-bolded, larger font size) */}
-                    <div
-                      className={`text-[17.5px] sm:text-[19px] font-normal tracking-wide transition-colors ${
+                    {/* Centered Chinese text with single-line auto-scaling and enlarged font */}
+                    <AutoFitChineseText
+                      text={card.text}
+                      className={`text-[19.5px] sm:text-[21.5px] font-normal tracking-wide transition-colors ${
                         mode === 'study'
                           ? isSpeakingPair
-                            ? 'text-slate-900 font-medium'
+                            ? 'text-slate-900 font-normal'
                             : 'text-slate-800'
                           : isMatchedHighlight
-                          ? 'text-emerald-950'
+                          ? 'text-emerald-950 font-normal'
                           : card.isMatched
-                          ? 'text-emerald-800'
+                          ? 'text-emerald-800 font-normal'
                           : 'text-slate-800'
                       }`}
-                    >
-                      {card.text}
-                    </div>
+                    />
+
+                    {/* Trash Can Icon when in Remove Mode */}
+                    {currentCategory === 'custom' && isDeleteMode && (
+                      <button
+                        type="button"
+                        id={`btn-trash-right-${card.vocabId}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveCustomCard(card.vocabId);
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs z-10"
+                        title="点击删除此自定义卡片"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                      </button>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
+
+          {/* Delete mode hint banner */}
+          {currentCategory === 'custom' && isDeleteMode && (
+            <div className="mt-2 text-center text-xs text-rose-600 font-medium py-1 animate-fadeIn flex items-center justify-center gap-1 bg-rose-50/70 rounded-xl border border-rose-200/60">
+              <Trash2 className="w-3 h-3" />
+              <span>点击卡片上的垃圾桶即可删除对应词汇</span>
+            </div>
+          )}
+
+          {/* When in "custom" category: add an option to add an extra vocab word at the bottom of the 8 rows of cards with "add custom english" and "remove card" */}
+          {currentCategory === 'custom' && (
+            <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-center gap-2 pb-1 shrink-0">
+              <button
+                id="btn-add-custom-english"
+                onClick={() => setIsAddSheetOpen(true)}
+                className="flex-1 max-w-[175px] h-9 px-3 bg-white hover:bg-purple-50 active:scale-95 text-purple-600 border border-purple-400 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                title="添加自定义英文卡片"
+              >
+                <Plus className="w-4 h-4 text-purple-600 stroke-[2.2]" />
+                <span>添加自定义英文</span>
+              </button>
+
+              <button
+                id="btn-remove-custom-card"
+                onClick={() => setIsDeleteMode((prev) => !prev)}
+                className={`flex-1 max-w-[155px] h-9 px-3 rounded-xl text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  isDeleteMode
+                    ? 'bg-rose-600 hover:bg-rose-700 active:scale-95 text-white border border-rose-600 shadow-xs'
+                    : 'bg-white hover:bg-rose-50 active:scale-95 text-rose-600 border border-rose-300 shadow-2xs'
+                }`}
+                title={isDeleteMode ? '完成删除' : '开启删除卡片模式'}
+              >
+                {isDeleteMode ? (
+                  <>
+                    <Check className="w-4 h-4 stroke-[2.5]" />
+                    <span>完成删除</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 stroke-[2]" />
+                    <span>移除卡片</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Add Custom English Bottom Sheet */}
+      <AddCustomEnglishSheet
+        isOpen={isAddSheetOpen}
+        onClose={() => setIsAddSheetOpen(false)}
+        onAdd={handleAddCustomEnglish}
+      />
 
       {/* Page Picker Sheet Modal */}
       <PagePickerModal
