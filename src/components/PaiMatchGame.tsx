@@ -764,172 +764,197 @@ export const PaiMatchGame: React.FC = () => {
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
       <div className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar">
         <div className="h-full flex flex-col justify-start">
-          <div className="grid grid-cols-2 gap-1 sm:gap-1.5">
-            {/* LEFT COLUMN: 8 English Cards */}
-            <div className="space-y-1 sm:space-y-1.5">
-              {leftCards.map((card) => {
-                const isSelected = selectedLeft?.id === card.id;
-                const isSpeaking = speakingCardId === card.id;
+          {/* 8-Set Match Rows */}
+          <div className="space-y-1 sm:space-y-1.5">
+            {leftCards.map((leftCard, index) => {
+              const rightCard = rightCards[index];
+              if (!rightCard) return null;
 
-                return (
-                  <button
-                    key={card.id}
-                    id={`card-${card.id}`}
-                    onClick={() => handleLeftClick(card)}
-                    className={`relative w-full h-[54px] sm:h-[58px] px-2 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
-                      mode === 'study'
-                        ? isSpeaking
-                          ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
-                          : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:bg-slate-50/80 hover:border-slate-300 active:bg-slate-100 cursor-pointer'
-                        : card.isMatched
-                        ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
-                        : card.isWrong
-                        ? 'bg-rose-50 border-rose-400 text-rose-700 animate-shake shadow-xs cursor-pointer'
-                        : isSelected
-                        ? 'bg-blue-50/90 border-[#007AFF] text-[#007AFF] ring-2 ring-[#007AFF]/30 shadow-md scale-[1.02] cursor-pointer'
-                        : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:border-[#007AFF]/40 hover:bg-slate-50/60 cursor-pointer'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1 flex-1 min-w-0 pr-0.5 overflow-hidden">
-                      {/* Green outline checkmark when matched (game mode only) */}
-                      {mode === 'game' && card.isMatched && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 animate-scaleUp" />
-                      )}
+              const isLeftSelected = selectedLeft?.id === leftCard.id;
+              const isLeftSpeaking = speakingCardId === leftCard.id;
 
-                      {/* Auto-scaling single line English word with increased font size */}
-                      <AutoFitEnglishText text={card.text} isMatched={mode === 'game' && card.isMatched} />
-                    </div>
+              const isRightSelected = selectedRight?.id === rightCard.id;
+              const isRightMatchedHighlight =
+                rightCard.isMatched && highlightedMatchedVocabId === rightCard.vocabId;
+              const isRightSpeakingPair = speakingCardId === `left-${rightCard.vocabId}`;
 
-                    {/* Pronounce Icon OR Trash Can Icon when in Remove Mode */}
-                    {currentCategory === 'custom' && isDeleteMode ? (
-                      <button
-                        type="button"
-                        id={`btn-trash-left-${card.vocabId}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveCustomCard(card.vocabId);
-                        }}
-                        className="shrink-0 w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs ml-1 z-10"
-                        title="点击删除此自定义卡片"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
-                      </button>
-                    ) : (
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          speakEnglish(card.text, true);
-                          if (mode === 'study') {
-                            triggerSpeakingPulse(card.id);
-                            return;
-                          }
-                          if (card.isMatched) {
-                            triggerMatchedHighlight(card.vocabId);
-                            return;
-                          }
+              return (
+                <div
+                  key={`row-${leftCard.id}-${rightCard.id}`}
+                  className="relative grid grid-cols-2 gap-1 sm:gap-1.5 items-center"
+                >
+                  {/* LEFT: English Card */}
+                  <div className="min-w-0">
+                    <button
+                      key={leftCard.id}
+                      id={`card-${leftCard.id}`}
+                      onClick={() => handleLeftClick(leftCard)}
+                      className={`relative w-full h-[54px] sm:h-[58px] px-2 rounded-2xl border flex items-center justify-between text-left transition-all duration-200 select-none overflow-hidden ${
+                        mode === 'study'
+                          ? isLeftSpeaking
+                            ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
+                            : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:bg-slate-50/80 hover:border-slate-300 active:bg-slate-100 cursor-pointer'
+                          : leftCard.isMatched
+                          ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
+                          : leftCard.isWrong
+                          ? 'bg-rose-50 border-rose-400 text-rose-700 animate-shake shadow-xs cursor-pointer'
+                          : isLeftSelected
+                          ? 'bg-blue-50/90 border-[#007AFF] text-[#007AFF] ring-2 ring-[#007AFF]/30 shadow-md scale-[1.02] cursor-pointer'
+                          : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:border-[#007AFF]/40 hover:bg-slate-50/60 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1 flex-1 min-w-0 pr-0.5 overflow-hidden">
+                        {/* Green outline checkmark when matched (game mode only) */}
+                        {mode === 'game' && leftCard.isMatched && (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 animate-scaleUp" />
+                        )}
 
-                          // If tapped before any card is selected, select this card and play select sound
-                          if (!selectedLeft && !selectedRight) {
-                            playSelectSound();
-                            setSelectedLeft(card);
-                          }
-                        }}
-                        className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                          mode === 'study'
-                            ? isSpeaking
-                              ? 'bg-slate-200 text-slate-800 scale-110 shadow-xs'
-                              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95'
-                            : card.isMatched
-                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 hover:text-emerald-900 active:scale-90 shadow-2xs'
-                            : isSelected
-                            ? 'bg-blue-100 text-[#007AFF]'
-                            : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-                        }`}
-                        title={mode === 'study' ? '朗读发音' : card.isMatched ? '再次收听英文发音' : '收听发音'}
-                      >
-                        <Volume2 className="w-3.5 h-3.5" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* RIGHT COLUMN: 8 Chinese Cards (Centered, auto-fit to single line) */}
-            <div className="space-y-1 sm:space-y-1.5">
-              {rightCards.map((card) => {
-                const isSelected = selectedRight?.id === card.id;
-                const isMatchedHighlight =
-                  card.isMatched && highlightedMatchedVocabId === card.vocabId;
-                const isSpeakingPair = speakingCardId === `left-${card.vocabId}`;
-
-                return (
-                  <button
-                    key={card.id}
-                    id={`card-${card.id}`}
-                    onClick={() => handleRightClick(card)}
-                    className={`relative w-full h-[54px] sm:h-[58px] px-1.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
-                      mode === 'study'
-                        ? isSpeakingPair
-                          ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
-                          : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:bg-slate-50/80 hover:border-slate-300 active:bg-slate-100 cursor-pointer'
-                        : isMatchedHighlight
-                        ? 'bg-emerald-100 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/50 shadow-md scale-[1.03]'
-                        : card.isMatched
-                        ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
-                        : card.isWrong
-                        ? 'bg-rose-50 border-rose-400 text-rose-700 animate-shake shadow-xs cursor-pointer'
-                        : isSelected
-                        ? 'bg-blue-50/90 border-[#007AFF] text-[#007AFF] ring-2 ring-[#007AFF]/30 shadow-md scale-[1.02] cursor-pointer'
-                        : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:border-[#007AFF]/40 hover:bg-slate-50/60 cursor-pointer'
-                    }`}
-                  >
-                    {/* Absolute left-justified checkmark so centered text never shifts */}
-                    {mode === 'game' && card.isMatched && (
-                      <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none animate-scaleUp">
-                        <CheckCircle2
-                          className={`w-4 h-4 shrink-0 transition-transform ${
-                            isMatchedHighlight ? 'text-emerald-700 scale-125' : 'text-emerald-600'
-                          }`}
+                        {/* Auto-scaling single line English word with increased font size */}
+                        <AutoFitEnglishText
+                          text={leftCard.text}
+                          isMatched={mode === 'game' && leftCard.isMatched}
                         />
                       </div>
-                    )}
 
-                    {/* Centered Chinese text with single-line auto-scaling and enlarged font */}
-                    <AutoFitChineseText
-                      text={card.text}
-                      className={`text-[19.5px] sm:text-[21.5px] font-normal tracking-wide transition-colors ${
-                        mode === 'study'
-                          ? isSpeakingPair
-                            ? 'text-slate-900 font-normal'
-                            : 'text-slate-800'
-                          : isMatchedHighlight
-                          ? 'text-emerald-950 font-normal'
-                          : card.isMatched
-                          ? 'text-emerald-800 font-normal'
-                          : 'text-slate-800'
-                      }`}
+                      {/* Pronounce Icon OR Trash Can Icon when in Remove Mode */}
+                      {currentCategory === 'custom' && isDeleteMode ? (
+                        <button
+                          type="button"
+                          id={`btn-trash-left-${leftCard.vocabId}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveCustomCard(leftCard.vocabId);
+                          }}
+                          className="shrink-0 w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs ml-1 z-10"
+                          title="点击删除此自定义卡片"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                        </button>
+                      ) : (
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakEnglish(leftCard.text, true);
+                            if (mode === 'study') {
+                              triggerSpeakingPulse(leftCard.id);
+                              return;
+                            }
+                            if (leftCard.isMatched) {
+                              triggerMatchedHighlight(leftCard.vocabId);
+                              return;
+                            }
+
+                            // If tapped before any card is selected, select this card and play select sound
+                            if (!selectedLeft && !selectedRight) {
+                              playSelectSound();
+                              setSelectedLeft(leftCard);
+                            }
+                          }}
+                          className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                            mode === 'study'
+                              ? isLeftSpeaking
+                                ? 'bg-slate-200 text-slate-800 scale-110 shadow-xs'
+                                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:scale-95'
+                              : leftCard.isMatched
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 hover:text-emerald-900 active:scale-90 shadow-2xs'
+                              : isLeftSelected
+                              ? 'bg-blue-100 text-[#007AFF]'
+                              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                          }`}
+                          title={
+                            mode === 'study'
+                              ? '朗读发音'
+                              : leftCard.isMatched
+                              ? '再次收听英文发音'
+                              : '收听发音'
+                          }
+                        >
+                          <Volume2 className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Gray line between left card and right card in learning practice mode (study mode); removed in game matching mode */}
+                  {mode === 'study' && (
+                    <div
+                      id={`row-line-${leftCard.vocabId}`}
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 sm:w-2 h-[2px] bg-slate-300 rounded-full pointer-events-none z-10"
+                      aria-hidden="true"
                     />
+                  )}
 
-                    {/* Trash Can Icon when in Remove Mode */}
-                    {currentCategory === 'custom' && isDeleteMode && (
-                      <button
-                        type="button"
-                        id={`btn-trash-right-${card.vocabId}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveCustomCard(card.vocabId);
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs z-10"
-                        title="点击删除此自定义卡片"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
-                      </button>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                  {/* RIGHT: Chinese Card */}
+                  <div className="min-w-0">
+                    <button
+                      key={rightCard.id}
+                      id={`card-${rightCard.id}`}
+                      onClick={() => handleRightClick(rightCard)}
+                      className={`relative w-full h-[54px] sm:h-[58px] px-1.5 rounded-2xl border flex items-center justify-center text-center transition-all duration-300 select-none overflow-hidden ${
+                        mode === 'study'
+                          ? isRightSpeakingPair
+                            ? 'bg-slate-100/90 border-slate-300 text-slate-900 shadow-xs'
+                            : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:bg-slate-50/80 hover:border-slate-300 active:bg-slate-100 cursor-pointer'
+                          : isRightMatchedHighlight
+                          ? 'bg-emerald-100 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/50 shadow-md scale-[1.03]'
+                          : rightCard.isMatched
+                          ? 'bg-emerald-50/90 border-emerald-400/80 text-emerald-900 shadow-2xs cursor-default'
+                          : rightCard.isWrong
+                          ? 'bg-rose-50 border-rose-400 text-rose-700 animate-shake shadow-xs cursor-pointer'
+                          : isRightSelected
+                          ? 'bg-blue-50/90 border-[#007AFF] text-[#007AFF] ring-2 ring-[#007AFF]/30 shadow-md scale-[1.02] cursor-pointer'
+                          : 'bg-white border-black/[0.06] text-slate-800 shadow-2xs hover:border-[#007AFF]/40 hover:bg-slate-50/60 cursor-pointer'
+                      }`}
+                    >
+                      {/* Absolute left-justified checkmark so centered text never shifts */}
+                      {mode === 'game' && rightCard.isMatched && (
+                        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none animate-scaleUp">
+                          <CheckCircle2
+                            className={`w-4 h-4 shrink-0 transition-transform ${
+                              isRightMatchedHighlight
+                                ? 'text-emerald-700 scale-125'
+                                : 'text-emerald-600'
+                            }`}
+                          />
+                        </div>
+                      )}
+
+                      {/* Centered Chinese text with single-line auto-scaling and enlarged font */}
+                      <AutoFitChineseText
+                        text={rightCard.text}
+                        className={`text-[19.5px] sm:text-[21.5px] font-normal tracking-wide transition-colors ${
+                          mode === 'study'
+                            ? isRightSpeakingPair
+                              ? 'text-slate-900 font-normal'
+                              : 'text-slate-800'
+                            : isRightMatchedHighlight
+                            ? 'text-emerald-950 font-normal'
+                            : rightCard.isMatched
+                            ? 'text-emerald-800 font-normal'
+                            : 'text-slate-800'
+                        }`}
+                      />
+
+                      {/* Trash Can Icon when in Remove Mode */}
+                      {currentCategory === 'custom' && isDeleteMode && (
+                        <button
+                          type="button"
+                          id={`btn-trash-right-${rightCard.vocabId}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveCustomCard(rightCard.vocabId);
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-xl bg-rose-500 hover:bg-rose-600 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs z-10"
+                          title="点击删除此自定义卡片"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                        </button>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Delete mode hint banner */}
