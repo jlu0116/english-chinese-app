@@ -17,6 +17,7 @@ interface CategoryPageBarProps {
   currentPage: number;
   pagesConfig: PageConfig[];
   completedPages: Record<number, boolean>;
+  showPages?: boolean;
   onSelectCategory: (catId: CategoryId) => void;
   onSelectPage: (pageNumber: number) => void;
   onOpenPagePicker: () => void;
@@ -28,6 +29,7 @@ export const CategoryPageBar: React.FC<CategoryPageBarProps> = ({
   currentPage,
   pagesConfig,
   completedPages,
+  showPages = true,
   onSelectCategory,
   onSelectPage,
   onOpenPagePicker,
@@ -139,56 +141,64 @@ export const CategoryPageBar: React.FC<CategoryPageBarProps> = ({
         </div>
       </div>
 
-      {/* Right: Page Selector with Prev, Page Trigger Button, Next */}
-      <div className="ml-auto flex items-center gap-1.5 shrink-0">
-        {/* Previous page arrow */}
-        <button
-          id="btn-prev-page"
-          onClick={() => hasPrev && onSelectPage(currentPage - 1)}
-          disabled={!hasPrev}
-          className={`w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-            hasPrev
-              ? 'bg-white text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95'
-              : 'text-slate-300 opacity-40 cursor-not-allowed'
-          }`}
-          title="上一页"
-        >
-          <ChevronLeft className="w-4.5 h-4.5" />
-        </button>
+      {/* Right: Page Selector with Prev, Page Trigger Button, Next in Game Mode */}
+      {showPages ? (
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {/* Previous page arrow */}
+          <button
+            id="btn-prev-page"
+            onClick={() => hasPrev && onSelectPage(currentPage - 1)}
+            disabled={!hasPrev}
+            className={`w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              hasPrev
+                ? 'bg-white text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95'
+                : 'text-slate-300 opacity-40 cursor-not-allowed'
+            }`}
+            title="上一页"
+          >
+            <ChevronLeft className="w-4.5 h-4.5" />
+          </button>
 
-        {/* Page Picker Trigger (Opens modal/dropdown) */}
-        <button
-          id="btn-open-page-picker"
-          onClick={onOpenPagePicker}
-          className="flex items-center gap-2 px-3 h-9 sm:h-9.5 bg-white text-slate-800 rounded-xl text-sm font-medium shadow-2xs border border-black/[0.06] hover:bg-slate-50 active:scale-95 cursor-pointer transition-all"
-          title="点击展开全部页面选择"
-        >
-          <span className="tabular-nums font-medium text-sm text-slate-800">
-            {currentPage}/{totalPages}页
-          </span>
-          {isCurrentPageDone && (
-            <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
-              <Check className="w-2.5 h-2.5 stroke-[3]" />
+          {/* Page Picker Trigger (Opens modal/dropdown) */}
+          <button
+            id="btn-open-page-picker"
+            onClick={onOpenPagePicker}
+            className="flex items-center gap-2 px-3 h-9 sm:h-9.5 bg-white text-slate-800 rounded-xl text-sm font-medium shadow-2xs border border-black/[0.06] hover:bg-slate-50 active:scale-95 cursor-pointer transition-all"
+            title="点击展开全部页面选择"
+          >
+            <span className="tabular-nums font-medium text-sm text-slate-800">
+              {currentPage}/{totalPages}页
             </span>
-          )}
-          <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-        </button>
+            {isCurrentPageDone && (
+              <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                <Check className="w-2.5 h-2.5 stroke-[3]" />
+              </span>
+            )}
+            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+          </button>
 
-        {/* Next page arrow */}
-        <button
-          id="btn-next-page"
-          onClick={() => hasNext && onSelectPage(currentPage + 1)}
-          disabled={!hasNext}
-          className={`w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-            hasNext
-              ? 'bg-white text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95'
-              : 'text-slate-300 opacity-40 cursor-not-allowed'
-          }`}
-          title="下一页"
-        >
-          <ChevronRight className="w-4.5 h-4.5" />
-        </button>
-      </div>
+          {/* Next page arrow */}
+          <button
+            id="btn-next-page"
+            onClick={() => hasNext && onSelectPage(currentPage + 1)}
+            disabled={!hasNext}
+            className={`w-9 h-9 sm:w-9.5 sm:h-9.5 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              hasNext
+                ? 'bg-white text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95'
+                : 'text-slate-300 opacity-40 cursor-not-allowed'
+            }`}
+            title="下一页"
+          >
+            <ChevronRight className="w-4.5 h-4.5" />
+          </button>
+        </div>
+      ) : (
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <span className="text-xs sm:text-sm font-medium text-slate-600 bg-white px-2.5 py-1 rounded-xl shadow-2xs border border-black/[0.05]">
+            全部 {currentCatInfo.totalWords} 词
+          </span>
+        </div>
+      )}
     </div>
   );
 };

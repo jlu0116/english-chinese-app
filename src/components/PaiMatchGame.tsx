@@ -4,6 +4,7 @@ import {
   getCategoryInfo,
   getCategoryPagesConfig,
   getCategoryPageItems,
+  getCategoryVocab,
 } from '../data/categories.ts';
 import {
   playSelectSound,
@@ -290,14 +291,14 @@ export const PaiMatchGame: React.FC = () => {
   // Start or reset a page with cards and zero duplicates
   const loadPage = useCallback(
     (pageNumber: number, categoryId: CategoryId, currentMode: AppMode = mode) => {
-      const pageItems =
-        categoryId === 'custom'
-          ? getCustomPageItems(getCustomVocabList(), pageNumber)
-          : getCategoryPageItems(categoryId, pageNumber);
-
       if (currentMode === 'study') {
-        // Study mode: cards are all lined up in original sequence
-        const newLeft: MatchCard[] = pageItems.map((item) => ({
+        // Learning Mode: infinite scroll for every card in the category, no pages
+        const allItems: VocabItem[] =
+          categoryId === 'custom'
+            ? customVocabList
+            : getCategoryVocab(categoryId);
+
+        const newLeft: MatchCard[] = allItems.map((item) => ({
           id: `left-${item.id}`,
           vocabId: item.id,
           text: item.english,
@@ -307,7 +308,7 @@ export const PaiMatchGame: React.FC = () => {
           isSelected: false,
         }));
 
-        const newRight: MatchCard[] = pageItems.map((item) => ({
+        const newRight: MatchCard[] = allItems.map((item) => ({
           id: `right-${item.id}`,
           vocabId: item.id,
           text: item.chinese,
@@ -324,7 +325,12 @@ export const PaiMatchGame: React.FC = () => {
         setIsVictoryOpen(false);
         setIsGameActive(false);
       } else {
-        // Game mode: cards are scrambled independently to play matching
+        // Game mode: cards are scoped to pageNumber (8 per page) and scrambled independently
+        const pageItems =
+          categoryId === 'custom'
+            ? getCustomPageItems(customVocabList, pageNumber)
+            : getCategoryPageItems(categoryId, pageNumber);
+
         const shuffledLeft = shuffleCards(pageItems);
         const newLeft: MatchCard[] = shuffledLeft.map((item) => ({
           id: `left-${item.id}`,
@@ -365,7 +371,7 @@ export const PaiMatchGame: React.FC = () => {
         elapsedSeconds: 0,
       });
     },
-    [mode]
+    [mode, customVocabList]
   );
 
   // When currentPage, currentCategory, mode, or customVocabList changes, reload cards
@@ -561,11 +567,11 @@ export const PaiMatchGame: React.FC = () => {
 
     if (mode === 'study') {
       // In study mode: cards cannot be selected to match; speaks the corresponding English audio
-      const pageItems =
+      const items =
         currentCategory === 'custom'
-          ? getCustomPageItems(getCustomVocabList(), currentPage)
-          : getCategoryPageItems(currentCategory, currentPage);
-      const item = pageItems.find((p) => p.id === card.vocabId);
+          ? customVocabList
+          : getCategoryVocab(currentCategory);
+      const item = items.find((p) => p.id === card.vocabId);
       if (item) {
         speakEnglish(item.english, true);
         triggerSpeakingPulse(`left-${card.vocabId}`);
@@ -696,6 +702,7 @@ export const PaiMatchGame: React.FC = () => {
         currentPage={currentPage}
         pagesConfig={pagesConfig}
         completedPages={completedPagesByCategory[currentCategory] || {}}
+        showPages={mode === 'game'}
         onSelectCategory={handleSelectCategory}
         onSelectPage={handleSelectPage}
         onOpenPagePicker={() => setIsPagePickerOpen(true)}
@@ -714,7 +721,7 @@ export const PaiMatchGame: React.FC = () => {
                 ? 'bg-white text-blue-600 shadow-xs font-medium'
                 : 'text-slate-600 hover:text-slate-900 font-normal'
             }`}
-            title="学习模式：卡片顺序对齐，点击英文卡片发音"
+            title="学习模式：无限滚动全部词汇，点击英文卡片发音"
           >
             <BookOpen className="w-4 h-4 shrink-0" />
             <span className="text-sm font-medium">学习</span>
@@ -729,7 +736,7 @@ export const PaiMatchGame: React.FC = () => {
                 ? 'bg-white text-indigo-600 shadow-xs font-medium'
                 : 'text-slate-600 hover:text-slate-900 font-normal'
             }`}
-            title="游戏模式：卡片打乱乱序，点击中英文连线消除"
+            title="游戏模式：分页卡片打乱乱序，点击中英文连线消除"
           >
             <Sparkles className="w-4 h-4 shrink-0" />
             <span className="text-sm font-medium">游戏</span>
@@ -778,11 +785,11 @@ export const PaiMatchGame: React.FC = () => {
         )}
       </div>
 
-      {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
+      {/* Main Match Arena (Paginated 8-set in game mode, infinite scroll in learning mode) */}
       <div className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar">
-        <div className="h-full flex flex-col justify-start">
-          {/* 8-Set Match Rows */}
-          <div className="space-y-1 sm:space-y-1.5">
+        <div className="flex flex-col justify-start">
+          {/* Match Rows */}
+          <div className={`space-y-1 sm:space-y-1.5 ${mode === 'study' ? 'pb-8' : 'pb-1'}`}>
             {leftCards.map((leftCard, index) => {
               const rightCard = rightCards[index];
               if (!rightCard) return null;
@@ -1022,57 +1029,59 @@ export const PaiMatchGame: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Page Navigation Bar: Left and Right buttons to go previous and next pages */}
-      <div className="shrink-0 px-3.5 sm:px-4 py-2 bg-white/95 backdrop-blur-md border-t border-black/[0.06] flex items-center justify-between select-none shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
-        {/* Left: Previous Page Button */}
-        <button
-          id="btn-bottom-prev-page"
-          onClick={handleBottomPrevPage}
-          disabled={!hasPrevPage}
-          className={`flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-            hasPrevPage
-              ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 shadow-2xs cursor-pointer'
-              : 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
-          }`}
-          title="上一页"
-        >
-          <ChevronLeft className="w-4 h-4 stroke-[2.2]" />
-          <span>上一页</span>
-        </button>
+      {/* Bottom Page Navigation Bar: Left and Right buttons to go previous and next pages (Game Mode only) */}
+      {mode === 'game' && (
+        <div className="shrink-0 px-3.5 sm:px-4 py-2 bg-white/95 backdrop-blur-md border-t border-black/[0.06] flex items-center justify-between select-none shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+          {/* Left: Previous Page Button */}
+          <button
+            id="btn-bottom-prev-page"
+            onClick={handleBottomPrevPage}
+            disabled={!hasPrevPage}
+            className={`flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+              hasPrevPage
+                ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 shadow-2xs cursor-pointer'
+                : 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
+            }`}
+            title="上一页"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[2.2]" />
+            <span>上一页</span>
+          </button>
 
-        {/* Center: Current Page Status & Picker Trigger */}
-        <button
-          id="btn-bottom-page-picker"
-          onClick={() => setIsPagePickerOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all text-slate-700 text-xs sm:text-sm font-medium cursor-pointer"
-          title="点击选择页码"
-        >
-          <span className="tabular-nums font-semibold text-slate-900">第 {currentPage}</span>
-          <span className="text-slate-400">/</span>
-          <span className="tabular-nums text-slate-600">{totalPages} 页</span>
-          {completedPagesByCategory[currentCategory]?.[currentPage] && (
-            <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0 ml-0.5">
-              <Check className="w-2.5 h-2.5 stroke-[3]" />
-            </span>
-          )}
-        </button>
+          {/* Center: Current Page Status & Picker Trigger */}
+          <button
+            id="btn-bottom-page-picker"
+            onClick={() => setIsPagePickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all text-slate-700 text-xs sm:text-sm font-medium cursor-pointer"
+            title="点击选择页码"
+          >
+            <span className="tabular-nums font-semibold text-slate-900">第 {currentPage}</span>
+            <span className="text-slate-400">/</span>
+            <span className="tabular-nums text-slate-600">{totalPages} 页</span>
+            {completedPagesByCategory[currentCategory]?.[currentPage] && (
+              <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0 ml-0.5">
+                <Check className="w-2.5 h-2.5 stroke-[3]" />
+              </span>
+            )}
+          </button>
 
-        {/* Right: Next Page Button */}
-        <button
-          id="btn-bottom-next-page"
-          onClick={handleBottomNextPage}
-          disabled={!hasNextPage}
-          className={`flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-            hasNextPage
-              ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 shadow-2xs cursor-pointer'
-              : 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
-          }`}
-          title="下一页"
-        >
-          <span>下一页</span>
-          <ChevronRight className="w-4 h-4 stroke-[2.2]" />
-        </button>
-      </div>
+          {/* Right: Next Page Button */}
+          <button
+            id="btn-bottom-next-page"
+            onClick={handleBottomNextPage}
+            disabled={!hasNextPage}
+            className={`flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+              hasNextPage
+                ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 shadow-2xs cursor-pointer'
+                : 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
+            }`}
+            title="下一页"
+          >
+            <span>下一页</span>
+            <ChevronRight className="w-4 h-4 stroke-[2.2]" />
+          </button>
+        </div>
+      )}
 
       {/* Add Custom English Bottom Sheet */}
       <AddCustomEnglishSheet
