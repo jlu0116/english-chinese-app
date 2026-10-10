@@ -290,7 +290,7 @@ export const PaiMatchGame: React.FC = () => {
     (pageNumber: number, categoryId: CategoryId, currentMode: AppMode = mode) => {
       const pageItems =
         categoryId === 'custom'
-          ? getCustomPageItems(getCustomVocabList(), pageNumber)
+          ? getCustomPageItems(customVocabList, pageNumber)
           : getCategoryPageItems(categoryId, pageNumber);
 
       if (currentMode === 'study') {
@@ -363,7 +363,7 @@ export const PaiMatchGame: React.FC = () => {
         elapsedSeconds: 0,
       });
     },
-    [mode]
+    [mode, customVocabList]
   );
 
   // When currentPage, currentCategory, mode, or customVocabList changes, reload cards
@@ -406,9 +406,129 @@ export const PaiMatchGame: React.FC = () => {
     setCurrentPage(1);
   };
 
+  // Swipe navigation state & touch/mouse gesture handlers
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const touchStartTimeRef = useRef<number | null>(null);
+  const isTouchActiveRef = useRef<boolean>(false);
+
+  const mouseStartXRef = useRef<number | null>(null);
+  const mouseStartYRef = useRef<number | null>(null);
+  const mouseStartTimeRef = useRef<number | null>(null);
+
+  // Clear slide transition direction after animation completes
+  useEffect(() => {
+    if (slideDirection) {
+      const timer = setTimeout(() => {
+        setSlideDirection(null);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [slideDirection]);
+
   // Page switch handler
   const handleSelectPage = (pageNumber: number) => {
+    if (pageNumber > currentPage) {
+      setSlideDirection('left');
+    } else if (pageNumber < currentPage) {
+      setSlideDirection('right');
+    }
     setCurrentPage(pageNumber);
+  };
+
+  const goToNextPage = useCallback(() => {
+    if (currentPage < totalPages) {
+      setSlideDirection('left');
+      setCurrentPage((prev) => prev + 1);
+      playSelectSound();
+    }
+  }, [currentPage, totalPages, playSelectSound]);
+
+  const goToPrevPage = useCallback(() => {
+    if (currentPage > 1) {
+      setSlideDirection('right');
+      setCurrentPage((prev) => prev - 1);
+      playSelectSound();
+    }
+  }, [currentPage, playSelectSound]);
+
+  // Touch Swipe Handlers (Mobile / Touch Devices)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    isTouchActiveRef.current = true;
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    touchStartTimeRef.current = Date.now();
+  };
+
+  const handleTouchMove = () => {
+    // Keep touch positions active
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const diffX = endX - touchStartXRef.current;
+    const diffY = endY - touchStartYRef.current;
+    const duration = Date.now() - (touchStartTimeRef.current || 0);
+
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    touchStartTimeRef.current = null;
+
+    // Minimum swipe threshold: 40px, predominantly horizontal (1.2x), within 800ms
+    const SWIPE_THRESHOLD = 40;
+    if (
+      Math.abs(diffX) >= SWIPE_THRESHOLD &&
+      Math.abs(diffX) > Math.abs(diffY) * 1.2 &&
+      duration < 800
+    ) {
+      if (diffX < 0) {
+        goToNextPage();
+      } else {
+        goToPrevPage();
+      }
+    }
+
+    setTimeout(() => {
+      isTouchActiveRef.current = false;
+    }, 150);
+  };
+
+  // Mouse Drag Handlers (Desktop / Preview Simulator)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isTouchActiveRef.current) return;
+    if (e.button !== 0) return;
+    mouseStartXRef.current = e.clientX;
+    mouseStartYRef.current = e.clientY;
+    mouseStartTimeRef.current = Date.now();
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (isTouchActiveRef.current) return;
+    if (mouseStartXRef.current === null || mouseStartYRef.current === null) return;
+    const diffX = e.clientX - mouseStartXRef.current;
+    const diffY = e.clientY - mouseStartYRef.current;
+    const duration = Date.now() - (mouseStartTimeRef.current || 0);
+
+    mouseStartXRef.current = null;
+    mouseStartYRef.current = null;
+    mouseStartTimeRef.current = null;
+
+    const SWIPE_THRESHOLD = 50;
+    if (
+      Math.abs(diffX) >= SWIPE_THRESHOLD &&
+      Math.abs(diffX) > Math.abs(diffY) * 1.2 &&
+      duration < 800
+    ) {
+      if (diffX < 0) {
+        goToNextPage();
+      } else {
+        goToPrevPage();
+      }
+    }
   };
 
   // Timer loop
@@ -762,10 +882,27 @@ export const PaiMatchGame: React.FC = () => {
       </div>
 
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
-      <div className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar">
+      <div
+        id="arena-card-container"
+        className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar touch-pan-y select-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+      >
         <div className="h-full flex flex-col justify-start">
           {/* 8-Set Match Rows */}
-          <div className="space-y-1 sm:space-y-1.5">
+          <div
+            key={`page-${currentPage}-${currentCategory}`}
+            className={`space-y-1 sm:space-y-1.5 transition-all ${
+              slideDirection === 'left'
+                ? 'animate-slideInRight'
+                : slideDirection === 'right'
+                ? 'animate-slideInLeft'
+                : 'animate-fadeIn'
+            }`}
+          >
             {leftCards.map((leftCard, index) => {
               const rightCard = rightCards[index];
               if (!rightCard) return null;
