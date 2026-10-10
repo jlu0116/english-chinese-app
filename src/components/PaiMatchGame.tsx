@@ -29,6 +29,8 @@ import {
   Plus,
   Trash2,
   Check,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { VictoryModal } from './VictoryModal.tsx';
 import { VocabHandbookModal } from './VocabHandbookModal.tsx';
@@ -290,7 +292,7 @@ export const PaiMatchGame: React.FC = () => {
     (pageNumber: number, categoryId: CategoryId, currentMode: AppMode = mode) => {
       const pageItems =
         categoryId === 'custom'
-          ? getCustomPageItems(customVocabList, pageNumber)
+          ? getCustomPageItems(getCustomVocabList(), pageNumber)
           : getCategoryPageItems(categoryId, pageNumber);
 
       if (currentMode === 'study') {
@@ -363,7 +365,7 @@ export const PaiMatchGame: React.FC = () => {
         elapsedSeconds: 0,
       });
     },
-    [mode, customVocabList]
+    [mode]
   );
 
   // When currentPage, currentCategory, mode, or customVocabList changes, reload cards
@@ -406,129 +408,9 @@ export const PaiMatchGame: React.FC = () => {
     setCurrentPage(1);
   };
 
-  // Swipe navigation state & touch/mouse gesture handlers
-  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
-  const touchStartXRef = useRef<number | null>(null);
-  const touchStartYRef = useRef<number | null>(null);
-  const touchStartTimeRef = useRef<number | null>(null);
-  const isTouchActiveRef = useRef<boolean>(false);
-
-  const mouseStartXRef = useRef<number | null>(null);
-  const mouseStartYRef = useRef<number | null>(null);
-  const mouseStartTimeRef = useRef<number | null>(null);
-
-  // Clear slide transition direction after animation completes
-  useEffect(() => {
-    if (slideDirection) {
-      const timer = setTimeout(() => {
-        setSlideDirection(null);
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [slideDirection]);
-
   // Page switch handler
   const handleSelectPage = (pageNumber: number) => {
-    if (pageNumber > currentPage) {
-      setSlideDirection('left');
-    } else if (pageNumber < currentPage) {
-      setSlideDirection('right');
-    }
     setCurrentPage(pageNumber);
-  };
-
-  const goToNextPage = useCallback(() => {
-    if (currentPage < totalPages) {
-      setSlideDirection('left');
-      setCurrentPage((prev) => prev + 1);
-      playSelectSound();
-    }
-  }, [currentPage, totalPages, playSelectSound]);
-
-  const goToPrevPage = useCallback(() => {
-    if (currentPage > 1) {
-      setSlideDirection('right');
-      setCurrentPage((prev) => prev - 1);
-      playSelectSound();
-    }
-  }, [currentPage, playSelectSound]);
-
-  // Touch Swipe Handlers (Mobile / Touch Devices)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    isTouchActiveRef.current = true;
-    touchStartXRef.current = e.touches[0].clientX;
-    touchStartYRef.current = e.touches[0].clientY;
-    touchStartTimeRef.current = Date.now();
-  };
-
-  const handleTouchMove = () => {
-    // Keep touch positions active
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
-    const diffX = endX - touchStartXRef.current;
-    const diffY = endY - touchStartYRef.current;
-    const duration = Date.now() - (touchStartTimeRef.current || 0);
-
-    touchStartXRef.current = null;
-    touchStartYRef.current = null;
-    touchStartTimeRef.current = null;
-
-    // Minimum swipe threshold: 40px, predominantly horizontal (1.2x), within 800ms
-    const SWIPE_THRESHOLD = 40;
-    if (
-      Math.abs(diffX) >= SWIPE_THRESHOLD &&
-      Math.abs(diffX) > Math.abs(diffY) * 1.2 &&
-      duration < 800
-    ) {
-      if (diffX < 0) {
-        goToNextPage();
-      } else {
-        goToPrevPage();
-      }
-    }
-
-    setTimeout(() => {
-      isTouchActiveRef.current = false;
-    }, 150);
-  };
-
-  // Mouse Drag Handlers (Desktop / Preview Simulator)
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isTouchActiveRef.current) return;
-    if (e.button !== 0) return;
-    mouseStartXRef.current = e.clientX;
-    mouseStartYRef.current = e.clientY;
-    mouseStartTimeRef.current = Date.now();
-  };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (isTouchActiveRef.current) return;
-    if (mouseStartXRef.current === null || mouseStartYRef.current === null) return;
-    const diffX = e.clientX - mouseStartXRef.current;
-    const diffY = e.clientY - mouseStartYRef.current;
-    const duration = Date.now() - (mouseStartTimeRef.current || 0);
-
-    mouseStartXRef.current = null;
-    mouseStartYRef.current = null;
-    mouseStartTimeRef.current = null;
-
-    const SWIPE_THRESHOLD = 50;
-    if (
-      Math.abs(diffX) >= SWIPE_THRESHOLD &&
-      Math.abs(diffX) > Math.abs(diffY) * 1.2 &&
-      duration < 800
-    ) {
-      if (diffX < 0) {
-        goToNextPage();
-      } else {
-        goToPrevPage();
-      }
-    }
   };
 
   // Timer loop
@@ -717,12 +599,27 @@ export const PaiMatchGame: React.FC = () => {
     setSpeechEnabled(next);
   };
 
+  const hasPrevPage = currentPage > 1;
+
   // Navigation to next page
   const handleNextPage = () => {
     if (hasNextPage) {
       handleSelectPage(currentPage + 1);
     } else {
       handleSelectPage(1);
+    }
+  };
+
+  // Bottom buttons handlers
+  const handleBottomPrevPage = () => {
+    if (hasPrevPage) {
+      handleSelectPage(currentPage - 1);
+    }
+  };
+
+  const handleBottomNextPage = () => {
+    if (hasNextPage) {
+      handleSelectPage(currentPage + 1);
     }
   };
 
@@ -882,27 +779,10 @@ export const PaiMatchGame: React.FC = () => {
       </div>
 
       {/* Main 8-Set Match Arena (Two Columns, Exactly 8 cards per side) */}
-      <div
-        id="arena-card-container"
-        className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar touch-pan-y select-none"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-      >
+      <div className="flex-1 px-2 sm:px-3 py-1.5 overflow-y-auto no-scrollbar">
         <div className="h-full flex flex-col justify-start">
           {/* 8-Set Match Rows */}
-          <div
-            key={`page-${currentPage}-${currentCategory}`}
-            className={`space-y-1 sm:space-y-1.5 transition-all ${
-              slideDirection === 'left'
-                ? 'animate-slideInRight'
-                : slideDirection === 'right'
-                ? 'animate-slideInLeft'
-                : 'animate-fadeIn'
-            }`}
-          >
+          <div className="space-y-1 sm:space-y-1.5">
             {leftCards.map((leftCard, index) => {
               const rightCard = rightCards[index];
               if (!rightCard) return null;
@@ -1140,6 +1020,58 @@ export const PaiMatchGame: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Bottom Page Navigation Bar: Left and Right buttons to go previous and next pages */}
+      <div className="shrink-0 px-3.5 sm:px-4 py-2 bg-white/95 backdrop-blur-md border-t border-black/[0.06] flex items-center justify-between select-none shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+        {/* Left: Previous Page Button */}
+        <button
+          id="btn-bottom-prev-page"
+          onClick={handleBottomPrevPage}
+          disabled={!hasPrevPage}
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+            hasPrevPage
+              ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 shadow-2xs cursor-pointer'
+              : 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
+          }`}
+          title="上一页"
+        >
+          <ChevronLeft className="w-4 h-4 stroke-[2.2]" />
+          <span>上一页</span>
+        </button>
+
+        {/* Center: Current Page Status & Picker Trigger */}
+        <button
+          id="btn-bottom-page-picker"
+          onClick={() => setIsPagePickerOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all text-slate-700 text-xs sm:text-sm font-medium cursor-pointer"
+          title="点击选择页码"
+        >
+          <span className="tabular-nums font-semibold text-slate-900">第 {currentPage}</span>
+          <span className="text-slate-400">/</span>
+          <span className="tabular-nums text-slate-600">{totalPages} 页</span>
+          {completedPagesByCategory[currentCategory]?.[currentPage] && (
+            <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0 ml-0.5">
+              <Check className="w-2.5 h-2.5 stroke-[3]" />
+            </span>
+          )}
+        </button>
+
+        {/* Right: Next Page Button */}
+        <button
+          id="btn-bottom-next-page"
+          onClick={handleBottomNextPage}
+          disabled={!hasNextPage}
+          className={`flex items-center gap-1.5 px-3 sm:px-3.5 h-9 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+            hasNextPage
+              ? 'bg-slate-100 text-slate-800 hover:bg-slate-200 active:scale-95 shadow-2xs cursor-pointer'
+              : 'text-slate-300 opacity-40 cursor-not-allowed bg-slate-50'
+          }`}
+          title="下一页"
+        >
+          <span>下一页</span>
+          <ChevronRight className="w-4 h-4 stroke-[2.2]" />
+        </button>
       </div>
 
       {/* Add Custom English Bottom Sheet */}
